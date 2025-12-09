@@ -1,0 +1,4 @@
+"""
+Crossword League backend package.
+"""
+
