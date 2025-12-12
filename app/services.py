@@ -10,6 +10,7 @@ from .config import settings
 from .models import Player, PuzzleResult
 from .schemas import (
     BulkPuzzleResultCreate,
+    CSVImportSummary,
     LeaderboardEntry,
     LeaderboardResponse,
     PlayerCreate,
@@ -31,6 +32,26 @@ def create_player(session: Session, payload: PlayerCreate) -> Player:
 
 def list_players(session: Session) -> List[Player]:
     return session.exec(select(Player).order_by(Player.name)).all()
+
+
+def update_player(session: Session, player_id: int, payload: PlayerCreate) -> Optional[Player]:
+    player = session.get(Player, player_id)
+    if not player:
+        return None
+    player.name = payload.name
+    player.handle = payload.handle
+    player.email = payload.email
+    player.nyt_username = payload.nyt_username
+    session.add(player)
+    session.commit()
+    session.refresh(player)
+    return player
+
+
+def list_results_by_date(session: Session, puzzle_date: date) -> List[PuzzleResult]:
+    return session.exec(
+        select(PuzzleResult).where(PuzzleResult.puzzle_date == puzzle_date),
+    ).all()
 
 
 def _find_existing_result(session: Session, player_id: int, puzzle_date: date) -> Optional[PuzzleResult]:
@@ -87,6 +108,27 @@ def _aggregate_scores(results: Iterable[PuzzleResult], points_table: List[int]) 
             player_totals["dates"].append(result.puzzle_date)
 
     return aggregates
+
+
+def import_results_from_rows(
+    session: Session,
+    rows: List[dict],
+    overwrite_existing: bool = True,
+) -> CSVImportSummary:
+    """
+    Accepts a list of dict rows with fields: player_id, puzzle_date, seconds, optional points_override, note, source.
+    """
+    results: List[PuzzleResultCreate] = []
+    errors: List[str] = []
+    for idx, row in enumerate(rows, start=1):
+        try:
+            result = PuzzleResultCreate(**row)
+            results.append(result)
+        except Exception as exc:  # noqa: BLE001 - convert to error message
+            errors.append(f"Row {idx}: {exc}")
+    payload = BulkPuzzleResultCreate(results=results, overwrite_existing=overwrite_existing)
+    stored = store_results(session, payload)
+    return CSVImportSummary(imported=len(stored), skipped=len(errors), errors=errors)
 
 
 def calculate_leaderboard(
@@ -179,6 +221,21 @@ def build_player_stats(
     aggregates = _aggregate_scores(all_results, points_table)
     player_totals = aggregates.get(player_id, {"points": 0, "seconds": [], "dates": []})
 
+    weekday_buckets: Dict[str, List[int]] = defaultdict(list)
+    weekday_labels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    for result in results:
+        weekday_buckets[weekday_labels[result.puzzle_date.weekday()]].append(result.seconds)
+
+    weekday_averages: Dict[str, float] = {}
+    best_day_of_week: Optional[str] = None
+    best_avg = None
+    for weekday, times in weekday_buckets.items():
+        avg = sum(times) / len(times)
+        weekday_averages[weekday] = avg
+        if best_avg is None or avg < best_avg:
+            best_avg = avg
+            best_day_of_week = weekday
+
     seconds: List[int] = player_totals["seconds"]
     puzzles_played = len(seconds)
     average_seconds = sum(seconds) / puzzles_played if puzzles_played else None
@@ -191,6 +248,8 @@ def build_player_stats(
         best_seconds=best_seconds,
         last_puzzle_date=max(player_totals["dates"]) if player_totals["dates"] else None,
         total_points=int(player_totals["points"]),
+        best_day_of_week=best_day_of_week,
+        weekday_averages=weekday_averages or None,
     )
 
 

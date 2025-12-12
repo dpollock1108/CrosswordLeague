@@ -25,6 +25,12 @@ def _parse_bool(raw: str | None, default: bool = False) -> bool:
     return raw.lower() in {"1", "true", "yes", "on"}
 
 
+def _parse_list(raw: str | None) -> List[str]:
+    if not raw:
+        return ["*"]
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 @dataclass
 class Settings:
     database_url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", "sqlite:///./crossword.db"))
@@ -33,6 +39,7 @@ class Settings:
     allow_default_admin_token: bool = field(
         default_factory=lambda: _parse_bool(os.getenv("ALLOW_DEFAULT_ADMIN_TOKEN"), default=False),
     )
+    allowed_origins: List[str] = field(default_factory=lambda: _parse_list(os.getenv("ALLOWED_ORIGINS")))
 
     @property
     def admin_token_configured(self) -> bool:
@@ -42,4 +49,3 @@ class Settings:
 
 
 settings = Settings()
-

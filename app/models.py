@@ -12,6 +12,7 @@ class Player(SQLModel, table=True):
     name: str = Field(index=True)
     handle: Optional[str] = Field(default=None, index=True, sa_column_kwargs={"unique": True})
     email: Optional[str] = Field(default=None)
+    nyt_username: Optional[str] = Field(default=None, index=True, sa_column_kwargs={"unique": True})
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 
@@ -27,4 +28,3 @@ class PuzzleResult(SQLModel, table=True):
     note: Optional[str] = Field(default=None)
     source: Optional[str] = Field(default=None, description="Import source identifier")
     recorded_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-
