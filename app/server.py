@@ -11,6 +11,7 @@ from .database import get_session, init_db
 from .schemas import (
     BulkPuzzleResultCreate,
     CSVImportSummary,
+    DelinquentPlayer,
     HealthResponse,
     LeaderboardResponse,
     PlayerCreate,
@@ -18,12 +19,14 @@ from .schemas import (
     PlayerStats,
     PuzzleResultCreate,
     PuzzleResultPublic,
+    WallOfShameResponse,
 )
 from .services import (
     build_player_stats,
     calculate_leaderboard,
     create_player,
     default_date_window,
+    find_delinquent_players,
     import_results_from_rows,
     list_players,
     update_player,
@@ -143,6 +146,15 @@ def create_app() -> FastAPI:
         if not stats:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found.")
         return stats
+
+    @app.get("/wall-of-shame", response_model=WallOfShameResponse)
+    def wall_of_shame(
+        scope: str = Query("week", pattern="^(week|month)$", description="Use 'week' or 'month' defaults"),
+        start_date: Optional[date] = Query(None, description="Override start date (YYYY-MM-DD)"),
+        end_date: Optional[date] = Query(None, description="Override end date (YYYY-MM-DD)"),
+        session=Depends(get_session),
+    ) -> WallOfShameResponse:
+        return find_delinquent_players(session, scope=scope, start_date=start_date, end_date=end_date)
 
     return app
 

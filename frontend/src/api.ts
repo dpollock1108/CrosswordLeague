@@ -3,6 +3,7 @@ import type {
   Player,
   PlayerStats,
   PuzzleResultInput,
+  WallOfShameResponse,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
@@ -37,6 +38,15 @@ export async function fetchPlayers(): Promise<Player[]> {
 
 export async function fetchPlayerStats(id: number): Promise<PlayerStats> {
   return http<PlayerStats>(`/players/${id}/stats`);
+}
+
+export async function fetchWallOfShame(params: { scope: "week" | "month"; startDate: string; endDate: string }) {
+  const search = new URLSearchParams({
+    scope: params.scope,
+    start_date: params.startDate,
+    end_date: params.endDate,
+  });
+  return http<WallOfShameResponse>(`/wall-of-shame?${search.toString()}`);
 }
 
 export async function fetchResultsByDate(token: string, puzzleDate: string) {

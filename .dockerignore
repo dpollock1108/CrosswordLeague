@@ -1,0 +1,16 @@
+.env
+crossword.db
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.venv/
+.idea/
+.mypy_cache/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+dist/
+build/
+.git/

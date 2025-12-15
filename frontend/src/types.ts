@@ -47,3 +47,18 @@ export type PuzzleResultInput = {
   note?: string | null;
   source?: string | null;
 };
+
+export type WallOfShameEntry = {
+  player_id: number;
+  name: string;
+  handle?: string | null;
+  missing_dates: string[];
+  missing_count: number;
+};
+
+export type WallOfShameResponse = {
+  start_date: string;
+  end_date: string;
+  scope: "week" | "month";
+  entries: WallOfShameEntry[];
+};
