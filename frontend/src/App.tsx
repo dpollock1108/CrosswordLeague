@@ -42,7 +42,7 @@ export default function App() {
     <BrowserRouter>
       <header>
         <div>
-          <p className="muted">NYT Mini</p>
+          <p className="muted">Boys and Girls</p>
           <h1>Crossword League</h1>
         </div>
         <Nav />

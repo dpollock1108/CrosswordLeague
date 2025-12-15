@@ -9,6 +9,14 @@ function formatSeconds(seconds?: number | null) {
   return mins ? `${mins}m ${secs}s` : `${secs}s`;
 }
 
+function formatSecondsRounded(seconds?: number | null) {
+  if (seconds === undefined || seconds === null) return "—";
+  const rounded = Math.round(seconds);
+  const mins = Math.floor(rounded / 60);
+  const secs = rounded % 60;
+  return mins ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
 export default function PlayerProfile() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -68,7 +76,7 @@ export default function PlayerProfile() {
         >
           <Stat label="Total points" value={String(stats.total_points)} />
           <Stat label="Puzzles played" value={String(stats.puzzles_played)} />
-          <Stat label="Average time" value={formatSeconds(stats.average_seconds)} />
+          <Stat label="Average time" value={formatSecondsRounded(stats.average_seconds)} />
           <Stat label="Best time" value={formatSeconds(stats.best_seconds)} />
           <Stat label="Last puzzle" value={stats.last_puzzle_date || "—"} />
           <Stat label="Best weekday" value={stats.best_day_of_week || "—"} />

@@ -87,3 +87,18 @@ class PlayerStats(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class DelinquentPlayer(BaseModel):
+    player_id: int
+    name: str
+    handle: Optional[str]
+    missing_dates: List[date]
+    missing_count: int
+
+
+class WallOfShameResponse(BaseModel):
+    start_date: date
+    end_date: date
+    scope: str
+    entries: List[DelinquentPlayer]

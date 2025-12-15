@@ -11,6 +11,7 @@ from .models import Player, PuzzleResult
 from .schemas import (
     BulkPuzzleResultCreate,
     CSVImportSummary,
+    DelinquentPlayer,
     LeaderboardEntry,
     LeaderboardResponse,
     PlayerCreate,
@@ -18,6 +19,7 @@ from .schemas import (
     PlayerStats,
     PuzzleResultCreate,
     PuzzleResultPublic,
+    WallOfShameResponse,
 )
 from .scoring import assign_daily_points, group_results_by_date
 
@@ -256,3 +258,88 @@ def build_player_stats(
 def default_date_window() -> tuple[date, date]:
     today = date.today()
     return today - timedelta(days=29), today
+
+
+def _daterange(start: date, end: date) -> List[date]:
+    if end < start:
+        raise ValueError("end_date must be on or after start_date")
+    days = (end - start).days
+    return [start + timedelta(days=offset) for offset in range(days + 1)]
+
+
+def _default_range_for_scope(scope: str) -> tuple[date, date]:
+    today = date.today()
+    if scope == "month":
+        start = today.replace(day=1)
+        # move to first day of next month then back one day
+        if start.month == 12:
+            next_month = start.replace(year=start.year + 1, month=1, day=1)
+        else:
+            next_month = start.replace(month=start.month + 1, day=1)
+        end = next_month - timedelta(days=1)
+    else:
+        # default to week: Monday-Sunday window for the current week
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    return start, end
+
+
+def find_delinquent_players(
+    session: Session,
+    scope: str = "week",
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> WallOfShameResponse:
+    if scope not in {"week", "month"}:
+        raise ValueError("scope must be 'week' or 'month'")
+
+    resolved_start, resolved_end = (start_date, end_date) if start_date and end_date else _default_range_for_scope(scope)
+    # If caller provided only one bound, align to default for the other.
+    if start_date and not end_date:
+        resolved_end = _default_range_for_scope(scope)[1]
+    if end_date and not start_date:
+        resolved_start = _default_range_for_scope(scope)[0]
+
+    today = date.today()
+    # Only count delinquency up to today; ignore future days in the window.
+    if resolved_start > today:
+        return WallOfShameResponse(start_date=resolved_start, end_date=today, scope=scope, entries=[])
+    resolved_end = min(resolved_end, today)
+
+    calendar = set(_daterange(resolved_start, resolved_end))
+
+    results = session.exec(
+        select(PuzzleResult).where(
+            PuzzleResult.puzzle_date >= resolved_start,
+            PuzzleResult.puzzle_date <= resolved_end,
+        ),
+    ).all()
+
+    results_by_player: Dict[int, set[date]] = defaultdict(set)
+    for result in results:
+        results_by_player[result.player_id].add(result.puzzle_date)
+
+    players = list_players(session)
+    entries: List[DelinquentPlayer] = []
+    for player in players:
+        missing_dates = sorted(calendar - results_by_player.get(player.id, set()))
+        if not missing_dates:
+            continue
+        entries.append(
+            DelinquentPlayer(
+                player_id=player.id,
+                name=player.name,
+                handle=player.handle,
+                missing_dates=missing_dates,
+                missing_count=len(missing_dates),
+            ),
+        )
+
+    entries.sort(key=lambda entry: (-entry.missing_count, entry.name.lower()))
+
+    return WallOfShameResponse(
+        start_date=resolved_start,
+        end_date=resolved_end,
+        scope=scope,
+        entries=entries,
+    )

@@ -50,6 +50,7 @@ How to set them:
 - `POST /results/single` — upsert one puzzle result (admin)
 - `GET /leaderboard?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` — leaderboard over a window (defaults to the last 30 days)
 - `GET /players/{player_id}/stats` — stats for a single player
+- `GET /wall-of-shame?scope=week|month&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` — who skipped puzzles in the window. Defaults: current week (Mon–Sun) or current month; pass both dates to override.
 
 ### Data model
 - **Player** — name, optional handle/email/nyt_username, created_at
@@ -92,3 +93,10 @@ Seed data (optional):
 uv run python -m app.seed
 ```
 Adds a few players and ~3 weeks of daily results into the configured DB (default SQLite).
+
+### Deploy checklist (AWS)
+- Build the backend image: `docker build -t crossword-league .` (uses `Dockerfile`).
+- Use Postgres in production: create an RDS instance and set `DATABASE_URL=postgresql+psycopg://...` plus `ADMIN_TOKEN` and `ALLOWED_ORIGINS=https://your-frontend-domain`.
+- Push the image to ECR, run it on ECS Fargate behind an ALB; set health check to `/health`.
+- Build the frontend (`npm run build` in `frontend/`) and host `frontend/dist` on S3 behind CloudFront (or serve from the same ALB path if preferred).
+- Point DNS (Route 53) to CloudFront (frontend) and the ALB (API) and attach ACM certificates for HTTPS.

@@ -144,8 +144,8 @@ button:not(:disabled):hover {
 }
 
 .podium {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   margin-top: 12px;
 }
@@ -201,10 +201,60 @@ button:not(:disabled):hover {
   color: #7c2d12;
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.board-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wall-card {
+  background: radial-gradient(circle at 15% 15%, #fff1f2, #fee2e2 45%, #fff);
+  border: 1px solid #fca5a5;
+  box-shadow: 0 12px 28px rgba(248, 113, 113, 0.3), inset 0 0 0 1px rgba(248, 113, 113, 0.25),
+    0 0 20px rgba(248, 113, 113, 0.4);
+}
+
+.shame-badge {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecdd3;
+}
+
+.top-offender {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.miss-count {
+  position: relative;
+  z-index: 2;
+}
+
+.miss-bar {
+  position: absolute;
+  inset: 4px 12px;
+  background: linear-gradient(90deg, rgba(248, 113, 113, 0.9), rgba(248, 113, 113, 0.4));
+  border-radius: 6px;
+  z-index: 1;
+  display: block;
+  height: 70%;
+  margin: auto 0;
+}
+
 @media (max-width: 640px) {
   header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
   }
 }
