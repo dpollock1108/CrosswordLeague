@@ -29,6 +29,18 @@ Set these environment variables (consider a `.env` file):
 - `ADMIN_TOKEN` — required for admin endpoints. Requests must include header `X-Admin-Token: <value>`.
 - `POINTS_TABLE` — comma-separated points per rank (default `10,8,6,4,2`). Extra players get 1 point.
 - `ALLOW_DEFAULT_ADMIN_TOKEN` — set to `true` only for local dev if you want to use the default token.
+- `DISABLE_ADMIN_AUTH` — set to `true` to temporarily skip admin auth checks (dev-only).
+
+How to set them:
+- Quick shell export for one session: `export DATABASE_URL=sqlite:///./crossword.db` (use `set` on Windows).
+- Persistent via `.env` in the repo root (auto-loaded by uv):  
+  ```
+  DATABASE_URL=sqlite:///./crossword.db
+  ADMIN_TOKEN=replace-me
+  POINTS_TABLE=10,8,6,4,2
+  ALLOW_DEFAULT_ADMIN_TOKEN=false
+  ```
+- Frontend base URL: create `frontend/.env` with `VITE_API_BASE=http://localhost:8000` (or your deployed API).
 
 ### API overview
 - `GET /health` — service status

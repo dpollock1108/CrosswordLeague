@@ -39,6 +39,7 @@ class Settings:
     allow_default_admin_token: bool = field(
         default_factory=lambda: _parse_bool(os.getenv("ALLOW_DEFAULT_ADMIN_TOKEN"), default=False),
     )
+    disable_admin_auth: bool = field(default_factory=lambda: _parse_bool(os.getenv("DISABLE_ADMIN_AUTH"), default=False))
     allowed_origins: List[str] = field(default_factory=lambda: _parse_list(os.getenv("ALLOWED_ORIGINS")))
 
     @property

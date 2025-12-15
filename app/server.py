@@ -34,6 +34,8 @@ from .services import (
 
 
 def require_admin(x_admin_token: Optional[str] = Header(None)) -> None:
+    if settings.disable_admin_auth:
+        return
     if not settings.admin_token_configured:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
