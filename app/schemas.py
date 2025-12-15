@@ -10,6 +10,7 @@ class PlayerCreate(BaseModel):
     name: str
     handle: Optional[str] = None
     email: Optional[str] = None
+    nyt_username: Optional[str] = None
 
 
 class PlayerPublic(PlayerCreate):
@@ -47,6 +48,12 @@ class BulkPuzzleResultCreate(BaseModel):
     overwrite_existing: bool = False
 
 
+class CSVImportSummary(BaseModel):
+    imported: int
+    skipped: int
+    errors: List[str] = Field(default_factory=list)
+
+
 class LeaderboardEntry(BaseModel):
     player_id: int
     name: str
@@ -71,8 +78,12 @@ class PlayerStats(BaseModel):
     best_seconds: Optional[int]
     last_puzzle_date: Optional[date]
     total_points: int
+    best_day_of_week: Optional[str] = Field(default=None, description="Weekday with best average time")
+    weekday_averages: Optional[dict[str, float]] = Field(
+        default=None,
+        description="Average seconds per weekday name",
+    )
 
 
 class HealthResponse(BaseModel):
     status: str
-
