@@ -4,6 +4,10 @@ import os
 from dataclasses import dataclass, field
 from typing import List
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _parse_points_table(raw: str | None) -> List[int]:
     """
@@ -41,6 +45,7 @@ class Settings:
     )
     disable_admin_auth: bool = field(default_factory=lambda: _parse_bool(os.getenv("DISABLE_ADMIN_AUTH"), default=False))
     allowed_origins: List[str] = field(default_factory=lambda: _parse_list(os.getenv("ALLOWED_ORIGINS")))
+    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", ""))
 
     @property
     def admin_token_configured(self) -> bool:

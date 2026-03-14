@@ -1,14 +1,15 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   createPlayer,
   fetchPlayers,
   fetchResultsByDate,
   importResultsCsv,
+  parseScreenshot,
   submitResults,
   submitSingleResult,
   updatePlayer,
 } from "../api";
-import type { Player, PuzzleResultInput } from "../types";
+import type { Player, PuzzleResultInput, ScreenshotParseResponse } from "../types";
 
 export default function AdminPanel() {
   const [token, setToken] = useState("");
@@ -36,6 +37,14 @@ export default function AdminPanel() {
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [screenshotDate, setScreenshotDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseResult, setParseResult] = useState<ScreenshotParseResponse | null>(null);
+  const [screenshotStatus, setScreenshotStatus] = useState<string | null>(null);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPlayers()
@@ -174,6 +183,49 @@ export default function AdminPanel() {
       setCsvText("");
     } catch (err) {
       setCsvError((err as Error).message);
+    }
+  }
+
+  async function handleParseScreenshot(e: FormEvent) {
+    e.preventDefault();
+    if (!screenshotFile) return;
+    setParsing(true);
+    setParseResult(null);
+    setScreenshotStatus(null);
+    setScreenshotError(null);
+    try {
+      const result = await parseScreenshot(token, screenshotFile, screenshotDate);
+      setParseResult(result);
+    } catch (err) {
+      setScreenshotError((err as Error).message);
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function handleConfirmImport() {
+    if (!parseResult) return;
+    setImporting(true);
+    setScreenshotStatus(null);
+    setScreenshotError(null);
+    try {
+      const entries: PuzzleResultInput[] = parseResult.parsed
+        .filter((e) => e.matched && e.player_id !== null)
+        .map((e) => ({
+          player_id: e.player_id as number,
+          puzzle_date: parseResult.puzzle_date,
+          seconds: e.seconds,
+          source: "screenshot",
+        }));
+      await submitResults(token, entries, true);
+      setScreenshotStatus(`Imported ${entries.length} result(s) for ${parseResult.puzzle_date}`);
+      setParseResult(null);
+      setScreenshotFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      setScreenshotError((err as Error).message);
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -410,6 +462,97 @@ export default function AdminPanel() {
           {resultStatus && <p style={{ color: "green" }}>{resultStatus}</p>}
           {resultError && <p style={{ color: "crimson" }}>Error: {resultError}</p>}
         </form>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3>Import from Screenshot</h3>
+        <p className="muted">
+          Upload a screenshot of the NYT Mini friends leaderboard. Claude will parse the times and
+          match players by their NYT username (set via the player editor above).
+        </p>
+        <form onSubmit={handleParseScreenshot}>
+          <label>
+            Puzzle date
+            <input
+              type="date"
+              value={screenshotDate}
+              onChange={(e) => {
+                setScreenshotDate(e.target.value);
+                setParseResult(null);
+              }}
+              required
+            />
+          </label>
+          <label>
+            Leaderboard screenshot
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                setScreenshotFile(e.target.files?.[0] ?? null);
+                setParseResult(null);
+                setScreenshotStatus(null);
+                setScreenshotError(null);
+              }}
+              required
+            />
+          </label>
+          <button type="submit" disabled={!token || !screenshotFile || !screenshotDate || parsing}>
+            {parsing ? "Parsing…" : "Parse Screenshot"}
+          </button>
+        </form>
+
+        {parseResult && (
+          <div style={{ marginTop: 16 }}>
+            <h4 style={{ margin: "0 0 8px" }}>
+              Parsed results — {parseResult.matched_count} matched, {parseResult.unmatched_count} unmatched
+            </h4>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
+                  <th style={{ padding: "4px 8px" }}>NYT Username</th>
+                  <th style={{ padding: "4px 8px" }}>Time</th>
+                  <th style={{ padding: "4px 8px" }}>Seconds</th>
+                  <th style={{ padding: "4px 8px" }}>Player</th>
+                  <th style={{ padding: "4px 8px" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parseResult.parsed.map((entry) => (
+                  <tr
+                    key={entry.nyt_username}
+                    style={{ borderBottom: "1px solid #e5e7eb", color: entry.matched ? "inherit" : "crimson" }}
+                  >
+                    <td style={{ padding: "4px 8px" }}>{entry.nyt_username}</td>
+                    <td style={{ padding: "4px 8px" }}>{entry.time_str}</td>
+                    <td style={{ padding: "4px 8px" }}>{entry.seconds}</td>
+                    <td style={{ padding: "4px 8px" }}>{entry.player_name ?? "—"}</td>
+                    <td style={{ padding: "4px 8px" }}>{entry.matched ? "✓ matched" : "✗ no match"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {parseResult.unmatched_count > 0 && (
+              <p className="muted" style={{ marginTop: 8 }}>
+                Unmatched players need their NYT username filled in via the player editor above.
+              </p>
+            )}
+            {parseResult.matched_count > 0 && (
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={importing}
+                style={{ marginTop: 12 }}
+              >
+                {importing ? "Importing…" : `Import ${parseResult.matched_count} matched result(s)`}
+              </button>
+            )}
+          </div>
+        )}
+
+        {screenshotStatus && <p style={{ color: "green", marginTop: 8 }}>{screenshotStatus}</p>}
+        {screenshotError && <p style={{ color: "crimson", marginTop: 8 }}>Error: {screenshotError}</p>}
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

@@ -102,3 +102,19 @@ class WallOfShameResponse(BaseModel):
     end_date: date
     scope: str
     entries: List[DelinquentPlayer]
+
+
+class ParsedLeaderboardEntry(BaseModel):
+    nyt_username: str
+    time_str: str
+    seconds: int
+    player_id: Optional[int] = None
+    player_name: Optional[str] = None
+    matched: bool
+
+
+class ScreenshotParseResponse(BaseModel):
+    puzzle_date: date
+    parsed: List[ParsedLeaderboardEntry]
+    matched_count: int
+    unmatched_count: int
