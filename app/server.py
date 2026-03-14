@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -14,11 +14,13 @@ from .schemas import (
     DelinquentPlayer,
     HealthResponse,
     LeaderboardResponse,
+    ParsedLeaderboardEntry,
     PlayerCreate,
     PlayerPublic,
     PlayerStats,
     PuzzleResultCreate,
     PuzzleResultPublic,
+    ScreenshotParseResponse,
     WallOfShameResponse,
 )
 from .services import (
@@ -120,6 +122,58 @@ def create_app() -> FastAPI:
         session.commit()
         session.refresh(record)
         return PuzzleResultPublic.model_validate(record)
+
+    @app.post("/results/parse-screenshot", response_model=ScreenshotParseResponse)
+    async def parse_screenshot(
+        image: UploadFile = File(..., description="Leaderboard screenshot (JPEG or PNG)"),
+        puzzle_date: date = Form(..., description="Puzzle date (YYYY-MM-DD)"),
+        session=Depends(get_session),
+        _: None = Depends(require_admin),
+    ) -> ScreenshotParseResponse:
+        if not settings.anthropic_api_key:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="ANTHROPIC_API_KEY is not configured.",
+            )
+
+        image_bytes = await image.read()
+        media_type = image.content_type or "image/jpeg"
+
+        from .vision import parse_leaderboard_image
+
+        try:
+            raw_entries = parse_leaderboard_image(image_bytes, media_type)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Image parsing failed: {exc}",
+            )
+
+        players = list_players(session)
+        nyt_lookup = {p.nyt_username.lower(): p for p in players if p.nyt_username}
+
+        parsed: list[ParsedLeaderboardEntry] = []
+        for entry in raw_entries:
+            username: str = entry.get("username", "")
+            player = nyt_lookup.get(username.lower())
+            parsed.append(
+                ParsedLeaderboardEntry(
+                    nyt_username=username,
+                    time_str=entry.get("time", ""),
+                    seconds=int(entry.get("seconds", 0)),
+                    player_id=player.id if player else None,
+                    player_name=player.name if player else None,
+                    matched=player is not None,
+                )
+            )
+
+        matched_count = sum(1 for e in parsed if e.matched)
+        return ScreenshotParseResponse(
+            puzzle_date=puzzle_date,
+            parsed=parsed,
+            matched_count=matched_count,
+            unmatched_count=len(parsed) - matched_count,
+        )
 
     @app.get("/results", response_model=List[PuzzleResultPublic])
     def get_results_for_date(
