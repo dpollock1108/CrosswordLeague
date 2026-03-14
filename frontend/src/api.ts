@@ -3,6 +3,7 @@ import type {
   Player,
   PlayerStats,
   PuzzleResultInput,
+  ScreenshotParseResponse,
   WallOfShameResponse,
 } from "./types";
 
@@ -116,6 +117,27 @@ export async function submitSingleResult(
     },
     body: JSON.stringify(payload),
   });
+}
+
+export async function parseScreenshot(
+  token: string,
+  image: File,
+  puzzleDate: string,
+): Promise<ScreenshotParseResponse> {
+  const formData = new FormData();
+  formData.append("image", image);
+  formData.append("puzzle_date", puzzleDate);
+
+  const res = await fetch(`${API_BASE}/results/parse-screenshot`, {
+    method: "POST",
+    headers: { "X-Admin-Token": token },
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as ScreenshotParseResponse;
 }
 
 export async function importResultsCsv(

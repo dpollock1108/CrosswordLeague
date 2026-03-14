@@ -15,8 +15,8 @@ engine = _build_engine()
 
 
 def init_db() -> None:
-    _maybe_upgrade_schema(engine)
     SQLModel.metadata.create_all(engine)
+    _maybe_upgrade_schema(engine)
 
 
 def get_session() -> Session:
@@ -34,5 +34,5 @@ def _maybe_upgrade_schema(engine) -> None:
     with engine.begin() as conn:
         columns = conn.exec_driver_sql("PRAGMA table_info(player);").fetchall()
         names = [col[1] for col in columns]
-        if "nyt_username" not in names:
+        if names and "nyt_username" not in names:
             conn.exec_driver_sql("ALTER TABLE player ADD COLUMN nyt_username VARCHAR;")

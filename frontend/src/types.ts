@@ -62,3 +62,19 @@ export type WallOfShameResponse = {
   scope: "week" | "month";
   entries: WallOfShameEntry[];
 };
+
+export type ParsedLeaderboardEntry = {
+  nyt_username: string;
+  time_str: string;
+  seconds: number;
+  player_id: number | null;
+  player_name: string | null;
+  matched: boolean;
+};
+
+export type ScreenshotParseResponse = {
+  puzzle_date: string;
+  parsed: ParsedLeaderboardEntry[];
+  matched_count: number;
+  unmatched_count: number;
+};
