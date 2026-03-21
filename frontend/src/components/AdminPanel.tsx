@@ -27,7 +27,6 @@ export default function AdminPanel() {
     player_id: "",
     puzzle_date: "",
     seconds: "",
-    points_override: "",
     note: "",
   });
   const [gridDate, setGridDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -131,11 +130,10 @@ export default function AdminPanel() {
         player_id: Number(resultForm.player_id),
         puzzle_date: resultForm.puzzle_date,
         seconds: Number(resultForm.seconds),
-        points_override: resultForm.points_override ? Number(resultForm.points_override) : undefined,
         note: resultForm.note || undefined,
       });
       setResultStatus("Result recorded");
-      setResultForm({ player_id: "", puzzle_date: "", seconds: "", points_override: "", note: "" });
+      setResultForm({ player_id: "", puzzle_date: "", seconds: "", note: "" });
     } catch (err) {
       setResultError((err as Error).message);
     }
@@ -361,15 +359,6 @@ export default function AdminPanel() {
               value={resultForm.seconds}
               onChange={(e) => setResultForm((f) => ({ ...f, seconds: e.target.value }))}
               required
-            />
-          </label>
-          <label>
-            Points override (optional)
-            <input
-              type="number"
-              min="0"
-              value={resultForm.points_override}
-              onChange={(e) => setResultForm((f) => ({ ...f, points_override: e.target.value }))}
             />
           </label>
           <label>
