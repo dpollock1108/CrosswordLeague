@@ -10,13 +10,11 @@ import type {
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(init?.headers || {}),
-  };
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers,
+    headers: {
+      ...(init?.headers || {}),
+    },
   });
   if (!res.ok) {
     const text = await res.text();
@@ -66,6 +64,7 @@ export async function submitResults(
   return http("/results", {
     method: "POST",
     headers: {
+      "Content-Type": "application/json",
       "X-Admin-Token": token,
     },
     body: JSON.stringify({
@@ -79,6 +78,7 @@ export async function createPlayer(token: string, payload: { name: string; handl
   return http<Player>("/players", {
     method: "POST",
     headers: {
+      "Content-Type": "application/json",
       "X-Admin-Token": token,
     },
     body: JSON.stringify(payload),
@@ -93,6 +93,7 @@ export async function updatePlayer(
   return http<Player>(`/players/${playerId}`, {
     method: "PUT",
     headers: {
+      "Content-Type": "application/json",
       "X-Admin-Token": token,
     },
     body: JSON.stringify(payload),
@@ -113,6 +114,7 @@ export async function submitSingleResult(
   return http("/results/single", {
     method: "POST",
     headers: {
+      "Content-Type": "application/json",
       "X-Admin-Token": token,
     },
     body: JSON.stringify(payload),
@@ -155,6 +157,7 @@ export async function importResultsCsv(
   return http("/results/import-csv?" + new URLSearchParams({ overwrite_existing: String(overwrite_existing) }), {
     method: "POST",
     headers: {
+      "Content-Type": "application/json",
       "X-Admin-Token": token,
     },
     body: JSON.stringify(rows),

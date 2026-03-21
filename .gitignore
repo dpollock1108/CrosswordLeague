@@ -11,9 +11,11 @@ wheels/
 
 # Local environment/config
 .env
+.env.deploy
 *.db
 node_modules/
 .DS_Store
+./claude
 
 uv.lock
 .python-version

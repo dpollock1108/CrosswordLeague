@@ -38,14 +38,14 @@ def _parse_list(raw: str | None) -> List[str]:
 @dataclass
 class Settings:
     database_url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", "sqlite:///./crossword.db"))
-    admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", "changeme"))
+    admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", "changeme").strip())
     points_table: List[int] = field(default_factory=lambda: _parse_points_table(os.getenv("POINTS_TABLE")))
     allow_default_admin_token: bool = field(
         default_factory=lambda: _parse_bool(os.getenv("ALLOW_DEFAULT_ADMIN_TOKEN"), default=False),
     )
     disable_admin_auth: bool = field(default_factory=lambda: _parse_bool(os.getenv("DISABLE_ADMIN_AUTH"), default=False))
     allowed_origins: List[str] = field(default_factory=lambda: _parse_list(os.getenv("ALLOWED_ORIGINS")))
-    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", ""))
+    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", "").strip())
 
     @property
     def admin_token_configured(self) -> bool:

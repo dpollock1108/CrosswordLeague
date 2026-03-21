@@ -1,16 +1,35 @@
+# Secrets & local state
 .env
+.env.*
 crossword.db
+*.db
+
+# Python artefacts
 __pycache__/
 *.pyc
 .pytest_cache/
 .coverage
 .venv/
-.idea/
 .mypy_cache/
+
+# Editor / tooling
+.idea/
+.vscode/
+
+# Node artefacts (rebuilt inside Docker)
 node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+
+# Generic build output
 dist/
 build/
+
+# Git & CI
 .git/
+.github/
+.claude/
+
+# Scripts (not needed inside the container)
+scripts/

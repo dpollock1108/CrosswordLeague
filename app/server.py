@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
 from datetime import date
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import get_session, init_db
@@ -209,6 +213,16 @@ def create_app() -> FastAPI:
         session=Depends(get_session),
     ) -> WallOfShameResponse:
         return find_delinquent_players(session, scope=scope, start_date=start_date, end_date=end_date)
+
+    # Serve React frontend if the dist folder exists (production build)
+    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+    if frontend_dist.is_dir():
+        app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        def serve_spa(full_path: str) -> FileResponse:
+            index = frontend_dist / "index.html"
+            return FileResponse(str(index))
 
     return app
 
