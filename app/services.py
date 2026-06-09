@@ -140,7 +140,7 @@ def calculate_leaderboard(
     session: Session,
     start_date: Optional[date],
     end_date: Optional[date],
-    puzzle_type: Optional[str] = None,
+    puzzle_types: Optional[list[str]] = None,
     player_ids: Optional[set[int]] = None,
 ) -> LeaderboardResponse:
     # An empty player_ids set means "scope to nobody" — return an empty board
@@ -155,8 +155,8 @@ def calculate_leaderboard(
         statement = statement.where(PuzzleResult.puzzle_date >= start_date)
     if end_date:
         statement = statement.where(PuzzleResult.puzzle_date <= end_date)
-    if puzzle_type:
-        statement = statement.where(PuzzleResult.puzzle_type == puzzle_type)
+    if puzzle_types:
+        statement = statement.where(PuzzleResult.puzzle_type.in_(puzzle_types))
     if player_ids is not None:
         # Scoping to league members before aggregation means the daily
         # first-place bonus is naturally computed within the league.

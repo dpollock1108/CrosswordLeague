@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
@@ -16,11 +16,14 @@ router = APIRouter(tags=["leaderboard"])
 def leaderboard(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    puzzle_type: Optional[List[str]] = Query(
+        None, description="Filter by one or more puzzle types (repeatable). Omit for all."
+    ),
     session=Depends(get_session),
 ) -> LeaderboardResponse:
     if start_date is None and end_date is None:
         start_date, end_date = default_date_window()
-    return calculate_leaderboard(session, start_date, end_date)
+    return calculate_leaderboard(session, start_date, end_date, puzzle_types=puzzle_type)
 
 
 @router.get("/wall-of-shame", response_model=WallOfShameResponse)
