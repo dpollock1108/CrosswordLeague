@@ -107,7 +107,6 @@ frontend/src/
   pages/
     ResultsDashboard.tsx    — Leaderboard with week/month navigation
     DailyPuzzle.tsx         — Interactive crossword solver
-    PlayerProfile.tsx       — Per-player stats lookup
     Profile.tsx             — Authenticated user's profile + handle editor
     ScoringPage.tsx         — Scoring rules documentation
     NytTracker.tsx          — Legacy NYT Mini import tools (screenshot/CSV/manual)
@@ -178,7 +177,6 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 |---|---|---|
 | `/` | Global leaderboard | Public |
 | `/play` | Daily crossword solver | Authenticated |
-| `/players` | Player stats lookup | Public |
 | `/profile` | Your profile + handle editor | Authenticated |
 | `/scoring` | Scoring rules | Public |
 | `/leagues` | League list + create/join | Authenticated |

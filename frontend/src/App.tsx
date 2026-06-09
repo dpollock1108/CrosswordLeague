@@ -3,7 +3,6 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
 import ResultsDashboard from "./pages/ResultsDashboard";
-import PlayerProfile from "./pages/PlayerProfile";
 import NytTracker from "./pages/NytTracker";
 import ScoringPage from "./pages/ScoringPage";
 import DailyPuzzle from "./pages/DailyPuzzle";
@@ -19,7 +18,6 @@ function Nav() {
   const links = [
     { to: "/play", label: "Play" },
     { to: "/", label: "Leaderboard" },
-    { to: "/players", label: "Player Profile" },
     { to: "/scoring", label: "Scoring" },
   ];
 
@@ -130,7 +128,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ResultsDashboard />} />
           <Route path="/play" element={<DailyPuzzle />} />
-          <Route path="/players" element={<PlayerProfile />} />
           <Route path="/builder" element={<PuzzleBuilder />} />
           <Route path="/nyt-tracker" element={<NytTracker />} />
           <Route path="/scoring" element={<ScoringPage />} />
