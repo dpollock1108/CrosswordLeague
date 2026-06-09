@@ -71,6 +71,9 @@ class League(SQLModel, table=True):
     name: str = Field(index=True)
     invite_code: str = Field(index=True, sa_column_kwargs={"unique": True})
     creator_id: int = Field(foreign_key="user.id", nullable=False)
+    # "public": invite code joins instantly. "private": invite code creates a
+    # pending request that an admin must approve.
+    visibility: str = Field(default="private", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 
@@ -82,6 +85,7 @@ class LeagueMembership(SQLModel, table=True):
     league_id: int = Field(foreign_key="league.id", index=True, nullable=False)
     user_id: int = Field(foreign_key="user.id", index=True, nullable=False)
     role: str = Field(default="member")  # "member" or "admin"
+    status: str = Field(default="active", index=True)  # "active" or "pending"
     joined_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 

@@ -2,7 +2,9 @@ import type {
   AuthResponse,
   LeaderboardResponse,
   LeagueDetail,
+  LeagueJoinResult,
   LeaguePublic,
+  LeagueVisibility,
   Player,
   PlayerStats,
   PuzzleAdminPublic,
@@ -322,19 +324,53 @@ export async function listLeagues(jwt: string): Promise<LeaguePublic[]> {
   });
 }
 
-export async function createLeague(jwt: string, name: string): Promise<LeaguePublic> {
+export async function createLeague(
+  jwt: string,
+  name: string,
+  visibility: LeagueVisibility = "private",
+): Promise<LeaguePublic> {
   return http<LeaguePublic>("/leagues", {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, visibility }),
   });
 }
 
-export async function joinLeague(jwt: string, inviteCode: string): Promise<LeaguePublic> {
-  return http<LeaguePublic>("/leagues/join", {
+export async function joinLeague(jwt: string, inviteCode: string): Promise<LeagueJoinResult> {
+  return http<LeagueJoinResult>("/leagues/join", {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
     body: JSON.stringify({ invite_code: inviteCode }),
+  });
+}
+
+export async function updateLeagueVisibility(
+  jwt: string,
+  leagueId: number,
+  visibility: LeagueVisibility,
+): Promise<LeaguePublic> {
+  return http<LeaguePublic>(`/leagues/${leagueId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ visibility }),
+  });
+}
+
+export async function approveLeagueRequest(jwt: string, leagueId: number, userId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}/requests/${userId}/approve`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
+export async function denyLeagueRequest(jwt: string, leagueId: number, userId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}/requests/${userId}/deny`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
   });
 }
 

@@ -220,6 +220,11 @@ class WallOfShameResponse(BaseModel):
 
 class LeagueCreate(BaseModel):
     name: str = Field(min_length=2, max_length=60)
+    visibility: str = Field(default="private", pattern="^(public|private)$")
+
+
+class LeagueUpdate(BaseModel):
+    visibility: str = Field(pattern="^(public|private)$")
 
 
 class LeagueJoin(BaseModel):
@@ -232,6 +237,7 @@ class LeagueMemberPublic(BaseModel):
     handle: Optional[str] = None
     player_id: Optional[int] = None
     role: str
+    status: str = "active"
     joined_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -242,13 +248,21 @@ class LeaguePublic(BaseModel):
     name: str
     invite_code: str
     creator_id: int
+    visibility: str
     member_count: int
     role: Optional[str] = None  # current user's role in this league
+    membership_status: Optional[str] = None  # "active" or "pending" for current user
     created_at: datetime
+
+
+class LeagueJoinResult(BaseModel):
+    league: LeaguePublic
+    status: str  # "active" (joined) or "pending" (awaiting approval)
 
 
 class LeagueDetail(LeaguePublic):
     members: List[LeagueMemberPublic]
+    pending_requests: List[LeagueMemberPublic] = []  # populated for admins only
 
 
 class ParsedLeaderboardEntry(BaseModel):

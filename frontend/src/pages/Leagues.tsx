@@ -11,8 +11,10 @@ export default function Leagues() {
   const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
+  const [newVisibility, setNewVisibility] = useState<"public" | "private">("private");
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -35,8 +37,9 @@ export default function Leagues() {
     e.preventDefault();
     if (!token || !newName.trim()) return;
     setBusy(true);
+    setNotice(null);
     try {
-      await createLeague(token, newName.trim());
+      await createLeague(token, newName.trim(), newVisibility);
       setNewName("");
       await load();
     } catch (e) {
@@ -50,9 +53,16 @@ export default function Leagues() {
     e.preventDefault();
     if (!token || !inviteCode.trim()) return;
     setBusy(true);
+    setError(null);
+    setNotice(null);
     try {
-      await joinLeague(token, inviteCode.trim());
+      const result = await joinLeague(token, inviteCode.trim());
       setInviteCode("");
+      setNotice(
+        result.status === "pending"
+          ? `Request sent to "${result.league.name}" — awaiting admin approval.`
+          : `Joined "${result.league.name}"!`,
+      );
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to join league");
@@ -96,6 +106,11 @@ export default function Leagues() {
           {error}
         </div>
       )}
+      {notice && (
+        <div style={{ padding: 12, borderRadius: 8, background: "#f0fdf4", color: "#166534", fontSize: 14 }}>
+          {notice}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 8, flex: "1 1 240px" }}>
@@ -108,8 +123,21 @@ export default function Leagues() {
               onChange={(e) => setNewName(e.target.value)}
               maxLength={60}
             />
+            <select
+              style={inputStyle}
+              value={newVisibility}
+              onChange={(e) => setNewVisibility(e.target.value as "public" | "private")}
+            >
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
             <button style={btnStyle} disabled={busy || !newName.trim()}>Create</button>
           </div>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {newVisibility === "private"
+              ? "Private: people request with the code; you approve them."
+              : "Public: anyone with the code joins instantly."}
+          </span>
         </form>
 
         <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: 8, flex: "1 1 240px" }}>
@@ -135,28 +163,39 @@ export default function Leagues() {
           <p className="muted">You're not in any leagues yet. Create one or join with a code.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {leagues.map((l) => (
-              <Link
-                key={l.id}
-                to={`/leagues/${l.id}`}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "12px 16px",
-                  borderRadius: 10,
-                  border: "1px solid #e5e7eb",
-                  textDecoration: "none",
-                  color: "#0f172a",
-                }}
-              >
-                <span style={{ fontWeight: 600 }}>{l.name}</span>
+            {leagues.map((l) => {
+              const pending = l.membership_status === "pending";
+              const rowStyle = {
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 16px",
+                borderRadius: 10,
+                border: "1px solid #e5e7eb",
+                textDecoration: "none",
+                color: "#0f172a",
+                opacity: pending ? 0.7 : 1,
+              } as const;
+              const meta = (
                 <span className="muted" style={{ fontSize: 13 }}>
-                  {l.member_count} member{l.member_count === 1 ? "" : "s"}
-                  {l.role === "admin" ? " · admin" : ""}
+                  {l.visibility === "private" ? "Private" : "Public"}
+                  {pending
+                    ? " · pending approval"
+                    : ` · ${l.member_count} member${l.member_count === 1 ? "" : "s"}${l.role === "admin" ? " · admin" : ""}`}
                 </span>
-              </Link>
-            ))}
+              );
+              return pending ? (
+                <div key={l.id} style={rowStyle}>
+                  <span style={{ fontWeight: 600 }}>{l.name}</span>
+                  {meta}
+                </div>
+              ) : (
+                <Link key={l.id} to={`/leagues/${l.id}`} style={rowStyle}>
+                  <span style={{ fontWeight: 600 }}>{l.name}</span>
+                  {meta}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
