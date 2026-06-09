@@ -3,8 +3,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
 import ResultsDashboard from "./pages/ResultsDashboard";
-import PlayerProfile from "./pages/PlayerProfile";
-import AdminPanel from "./components/AdminPanel";
+import NytTracker from "./pages/NytTracker";
 import ScoringPage from "./pages/ScoringPage";
 import DailyPuzzle from "./pages/DailyPuzzle";
 import PuzzleBuilder from "./pages/PuzzleBuilder";
@@ -19,7 +18,6 @@ function Nav() {
   const links = [
     { to: "/play", label: "Play" },
     { to: "/", label: "Leaderboard" },
-    { to: "/players", label: "Player Profile" },
     { to: "/scoring", label: "Scoring" },
   ];
 
@@ -31,7 +29,7 @@ function Nav() {
   // Only show admin links to admins
   if (user?.is_admin) {
     links.push({ to: "/builder", label: "Puzzle Builder" });
-    links.push({ to: "/admin", label: "Admin Panel" });
+    links.push({ to: "/nyt-tracker", label: "NYT Tracker" });
   }
 
   return (
@@ -82,6 +80,7 @@ function UserMenu() {
             borderRadius: 8,
             border: "1px solid #d1d5db",
             background: "white",
+            color: "#0f172a",
             cursor: "pointer",
             fontSize: 13,
           }}
@@ -130,9 +129,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ResultsDashboard />} />
           <Route path="/play" element={<DailyPuzzle />} />
-          <Route path="/players" element={<PlayerProfile />} />
           <Route path="/builder" element={<PuzzleBuilder />} />
-          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/nyt-tracker" element={<NytTracker />} />
           <Route path="/scoring" element={<ScoringPage />} />
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/leagues/:id" element={<LeagueDetail />} />

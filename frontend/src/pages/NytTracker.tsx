@@ -11,7 +11,7 @@ import {
 } from "../api";
 import type { Player, PuzzleResultInput, ScreenshotParseResponse } from "../types";
 
-export default function AdminPanel() {
+export default function NytTracker() {
   const [token, setToken] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
   const [playersError, setPlayersError] = useState<string | null>(null);
@@ -231,8 +231,8 @@ export default function AdminPanel() {
     <section className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <div>
-          <h2>Admin Panel</h2>
-          <p className="muted">Upload puzzle results via JSON array.</p>
+          <h2>NYT Mini Tracker</h2>
+          <p className="muted">Legacy tools for importing NYT Mini results (screenshot, CSV, manual entry).</p>
         </div>
         <span className="badge">Requires admin token</span>
       </div>

@@ -133,7 +133,7 @@ export default function LeagueDetail() {
           <code style={{ fontSize: 16, fontWeight: 700, letterSpacing: 1, background: "#f1f5f9", padding: "4px 10px", borderRadius: 8 }}>
             {league.invite_code}
           </code>
-          <button onClick={handleCopy} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", cursor: "pointer", fontSize: 13 }}>
+          <button onClick={handleCopy} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#0f172a", cursor: "pointer", fontSize: 13 }}>
             {copied ? "Copied!" : "Copy"}
           </button>
         </div>
@@ -154,7 +154,7 @@ export default function LeagueDetail() {
           {league.role === "admin" && (
             <button
               onClick={handleToggleVisibility}
-              style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", cursor: "pointer", fontSize: 13 }}
+              style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#0f172a", cursor: "pointer", fontSize: 13 }}
             >
               Make {league.visibility === "private" ? "public" : "private"}
             </button>
