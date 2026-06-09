@@ -110,8 +110,8 @@ frontend/src/
     PlayerProfile.tsx       — Per-player stats lookup
     Profile.tsx             — Authenticated user's profile + handle editor
     ScoringPage.tsx         — Scoring rules documentation
+    NytTracker.tsx          — Legacy NYT Mini import tools (screenshot/CSV/manual)
   components/
-    AdminPanel.tsx          — Admin tools (player/result management)
     CrosswordGrid.tsx       — Interactive crossword grid component
     ClueList.tsx            — Clue sidebar with active highlighting
 ```
@@ -181,7 +181,10 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 | `/players` | Player stats lookup | Public |
 | `/profile` | Your profile + handle editor | Authenticated |
 | `/scoring` | Scoring rules | Public |
-| `/admin` | Admin panel | Admin only |
+| `/leagues` | League list + create/join | Authenticated |
+| `/leagues/:id` | League leaderboard + members | Member |
+| `/builder` | Puzzle builder (manual + AI) | Admin only |
+| `/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
 
 ### Crossword Solver
 

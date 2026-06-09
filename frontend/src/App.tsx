@@ -4,7 +4,7 @@ import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
 import ResultsDashboard from "./pages/ResultsDashboard";
 import PlayerProfile from "./pages/PlayerProfile";
-import AdminPanel from "./components/AdminPanel";
+import NytTracker from "./pages/NytTracker";
 import ScoringPage from "./pages/ScoringPage";
 import DailyPuzzle from "./pages/DailyPuzzle";
 import PuzzleBuilder from "./pages/PuzzleBuilder";
@@ -31,7 +31,7 @@ function Nav() {
   // Only show admin links to admins
   if (user?.is_admin) {
     links.push({ to: "/builder", label: "Puzzle Builder" });
-    links.push({ to: "/admin", label: "Admin Panel" });
+    links.push({ to: "/nyt-tracker", label: "NYT Tracker" });
   }
 
   return (
@@ -132,7 +132,7 @@ export default function App() {
           <Route path="/play" element={<DailyPuzzle />} />
           <Route path="/players" element={<PlayerProfile />} />
           <Route path="/builder" element={<PuzzleBuilder />} />
-          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/nyt-tracker" element={<NytTracker />} />
           <Route path="/scoring" element={<ScoringPage />} />
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/leagues/:id" element={<LeagueDetail />} />
