@@ -80,6 +80,7 @@ function UserMenu() {
             borderRadius: 8,
             border: "1px solid #d1d5db",
             background: "white",
+            color: "#0f172a",
             cursor: "pointer",
             fontSize: 13,
           }}
