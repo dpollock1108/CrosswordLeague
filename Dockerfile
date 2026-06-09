@@ -35,11 +35,13 @@ RUN pip install --no-cache-dir \
         "anthropic>=0.40.0" \
         "python-multipart>=0.0.9" \
         "python-dotenv>=1.0.0" \
-        "psycopg[binary]>=3.2.1"
+        "psycopg[binary]>=3.2.1" \
+        "alembic>=1.13.0"
 
 # Copy application code
 COPY app ./app
 COPY main.py .
+COPY alembic.ini .
 
 # Copy compiled frontend so FastAPI can serve it as static files
 COPY --from=frontend-builder /frontend/dist ./frontend/dist
@@ -47,4 +49,4 @@ COPY --from=frontend-builder /frontend/dist ./frontend/dist
 EXPOSE 8080
 
 # Cloud Run injects PORT env var; fall back to 8080
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
