@@ -162,6 +162,23 @@ def get_puzzle(
 # Solve flow (requires auth)
 # ---------------------------------------------------------------------------
 
+# Max active time (seconds) a single heartbeat may add. Heartbeats fire every
+# ~2s while the page is open; a gap larger than this (closed/backgrounded tab)
+# is clamped so only active solving time accrues — NYT-style. This both pauses
+# the clock when the page is closed and prevents the client from inflating time.
+_HEARTBEAT_CAP_SECONDS = 5
+
+
+def _accrue_active_time(attempt: SolveAttempt, now: datetime) -> None:
+    """Add capped elapsed time since the last heartbeat to the running total."""
+    if attempt.seconds is None:
+        attempt.seconds = 0
+    if attempt.last_tick_at is not None:
+        delta = (now - attempt.last_tick_at).total_seconds()
+        if delta > 0:
+            attempt.seconds += int(min(delta, _HEARTBEAT_CAP_SECONDS))
+    attempt.last_tick_at = now
+
 
 @router.post("/{puzzle_id}/start", response_model=SolveAttemptPublic, status_code=status.HTTP_201_CREATED)
 def start_solve(
@@ -169,11 +186,15 @@ def start_solve(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> SolveAttemptPublic:
-    """Start or resume a solve attempt. Idempotent — returns existing if already started."""
+    """Start or resume a solve attempt. Idempotent — returns existing if already started.
+
+    On resume, the heartbeat baseline is reset to now so the time the page was
+    closed is not counted."""
     puzzle = session.get(Puzzle, puzzle_id)
     if not puzzle or puzzle.status != "published":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Puzzle not found.")
 
+    now = datetime.utcnow()
     existing = session.exec(
         select(SolveAttempt).where(
             SolveAttempt.user_id == user.id,
@@ -182,12 +203,20 @@ def start_solve(
     ).first()
 
     if existing:
+        if not existing.is_complete:
+            # Resume: reset the baseline so the closed gap doesn't accrue.
+            existing.last_tick_at = now
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
         return SolveAttemptPublic.model_validate(existing)
 
     attempt = SolveAttempt(
         user_id=user.id,
         puzzle_id=puzzle_id,
-        started_at=datetime.utcnow(),
+        started_at=now,
+        seconds=0,
+        last_tick_at=now,
     )
     session.add(attempt)
     session.commit()
@@ -202,7 +231,9 @@ def save_progress(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> SolveAttemptPublic:
-    """Save intermediate grid state for resume support."""
+    """Heartbeat: accrue active solve time and save the current grid for resume.
+
+    Called by the client every ~2 seconds while the puzzle page is open."""
     attempt = session.exec(
         select(SolveAttempt).where(
             SolveAttempt.user_id == user.id,
@@ -215,6 +246,7 @@ def save_progress(
     if attempt.is_complete:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Puzzle already completed.")
 
+    _accrue_active_time(attempt, datetime.utcnow())
     attempt.grid_state = body.grid_state
     session.add(attempt)
     session.commit()
@@ -249,13 +281,17 @@ def submit_solve(
     correct, errors = _validate_submission(puzzle, body.grid_state)
 
     if not correct:
+        # Still accrue the time spent on this (incorrect) attempt.
+        _accrue_active_time(attempt, datetime.utcnow())
+        session.add(attempt)
+        session.commit()
         return SubmitResult(correct=False, errors=errors)
 
-    # Mark complete
+    # Accrue the final stretch of active time, then record that total.
     now = datetime.utcnow()
-    elapsed = int((now - attempt.started_at).total_seconds())
+    _accrue_active_time(attempt, now)
+    elapsed = int(attempt.seconds or 0)
     attempt.completed_at = now
-    attempt.seconds = elapsed
     attempt.is_complete = True
     attempt.grid_state = body.grid_state
     session.add(attempt)
