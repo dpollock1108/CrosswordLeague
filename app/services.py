@@ -6,7 +6,6 @@ from typing import Dict, Iterable, List, Optional
 
 from sqlmodel import Session, select
 
-from .config import settings
 from .models import Player, PuzzleResult
 from .schemas import (
     BulkPuzzleResultCreate,
@@ -50,16 +49,20 @@ def update_player(session: Session, player_id: int, payload: PlayerCreate) -> Op
     return player
 
 
-def list_results_by_date(session: Session, puzzle_date: date) -> List[PuzzleResult]:
-    return session.exec(
-        select(PuzzleResult).where(PuzzleResult.puzzle_date == puzzle_date),
-    ).all()
+def list_results_by_date(session: Session, puzzle_date: date, puzzle_type: Optional[str] = None) -> List[PuzzleResult]:
+    statement = select(PuzzleResult).where(PuzzleResult.puzzle_date == puzzle_date)
+    if puzzle_type:
+        statement = statement.where(PuzzleResult.puzzle_type == puzzle_type)
+    return session.exec(statement).all()
 
 
-def _find_existing_result(session: Session, player_id: int, puzzle_date: date) -> Optional[PuzzleResult]:
+def _find_existing_result(
+    session: Session, player_id: int, puzzle_date: date, puzzle_type: str = "nyt_mini",
+) -> Optional[PuzzleResult]:
     statement = select(PuzzleResult).where(
         PuzzleResult.player_id == player_id,
         PuzzleResult.puzzle_date == puzzle_date,
+        PuzzleResult.puzzle_type == puzzle_type,
     )
     return session.exec(statement).one_or_none()
 
@@ -69,7 +72,8 @@ def upsert_puzzle_result(
     payload: PuzzleResultCreate,
     overwrite_existing: bool,
 ) -> PuzzleResult:
-    existing = _find_existing_result(session, payload.player_id, payload.puzzle_date)
+    puzzle_type = getattr(payload, "puzzle_type", "nyt_mini") or "nyt_mini"
+    existing = _find_existing_result(session, payload.player_id, payload.puzzle_date, puzzle_type)
     if existing and not overwrite_existing:
         return existing
 
@@ -82,7 +86,9 @@ def upsert_puzzle_result(
         session.add(existing)
         return existing
 
-    result = PuzzleResult(**payload.model_dump())
+    data = payload.model_dump()
+    data["puzzle_type"] = puzzle_type
+    result = PuzzleResult(**data)
     session.add(result)
     return result
 
@@ -97,12 +103,12 @@ def store_results(session: Session, payload: BulkPuzzleResultCreate) -> List[Puz
     return saved
 
 
-def _aggregate_scores(results: Iterable[PuzzleResult], points_table: List[int]) -> Dict[int, Dict[str, object]]:
+def _aggregate_scores(results: Iterable[PuzzleResult]) -> Dict[int, Dict[str, object]]:
     grouped = group_results_by_date(results)
     aggregates: Dict[int, Dict[str, object]] = defaultdict(lambda: {"points": 0, "seconds": [], "dates": []})
 
     for _, daily_results in grouped.items():
-        daily_points = assign_daily_points(daily_results, points_table)
+        daily_points = assign_daily_points(daily_results)
         for result in daily_results:
             player_totals = aggregates[result.player_id]
             player_totals["points"] += daily_points.get(result.player_id, 0)
@@ -117,16 +123,13 @@ def import_results_from_rows(
     rows: List[dict],
     overwrite_existing: bool = True,
 ) -> CSVImportSummary:
-    """
-    Accepts a list of dict rows with fields: player_id, puzzle_date, seconds, optional points_override, note, source.
-    """
     results: List[PuzzleResultCreate] = []
     errors: List[str] = []
     for idx, row in enumerate(rows, start=1):
         try:
             result = PuzzleResultCreate(**row)
             results.append(result)
-        except Exception as exc:  # noqa: BLE001 - convert to error message
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"Row {idx}: {exc}")
     payload = BulkPuzzleResultCreate(results=results, overwrite_existing=overwrite_existing)
     stored = store_results(session, payload)
@@ -137,14 +140,27 @@ def calculate_leaderboard(
     session: Session,
     start_date: Optional[date],
     end_date: Optional[date],
-    points_table: Optional[List[int]] = None,
+    puzzle_type: Optional[str] = None,
+    player_ids: Optional[set[int]] = None,
 ) -> LeaderboardResponse:
-    points_table = points_table or settings.points_table
+    # An empty player_ids set means "scope to nobody" — return an empty board
+    # rather than (incorrectly) falling through to the global leaderboard.
+    if player_ids is not None and not player_ids:
+        resolved_start = start_date or date.today()
+        resolved_end = end_date or resolved_start
+        return LeaderboardResponse(start_date=resolved_start, end_date=resolved_end, entries=[])
+
     statement = select(PuzzleResult)
     if start_date:
         statement = statement.where(PuzzleResult.puzzle_date >= start_date)
     if end_date:
         statement = statement.where(PuzzleResult.puzzle_date <= end_date)
+    if puzzle_type:
+        statement = statement.where(PuzzleResult.puzzle_type == puzzle_type)
+    if player_ids is not None:
+        # Scoping to league members before aggregation means the daily
+        # first-place bonus is naturally computed within the league.
+        statement = statement.where(PuzzleResult.player_id.in_(player_ids))
 
     results = session.exec(statement).all()
     if not results:
@@ -153,14 +169,13 @@ def calculate_leaderboard(
         return LeaderboardResponse(
             start_date=resolved_start,
             end_date=resolved_end,
-            points_table=points_table,
             entries=[],
         )
 
     resolved_start = start_date or min(result.puzzle_date for result in results)
     resolved_end = end_date or max(result.puzzle_date for result in results)
 
-    aggregates = _aggregate_scores(results, points_table)
+    aggregates = _aggregate_scores(results)
     players = session.exec(select(Player).where(Player.id.in_(list(aggregates.keys())))).all()
     player_lookup = {player.id: player for player in players}
 
@@ -190,7 +205,6 @@ def calculate_leaderboard(
     return LeaderboardResponse(
         start_date=resolved_start,
         end_date=resolved_end,
-        points_table=points_table,
         entries=entries,
     )
 
@@ -198,13 +212,11 @@ def calculate_leaderboard(
 def build_player_stats(
     session: Session,
     player_id: int,
-    points_table: Optional[List[int]] = None,
 ) -> Optional[PlayerStats]:
     player = session.get(Player, player_id)
     if not player:
         return None
 
-    # Use the full history for the player; we reuse the leaderboard aggregation to keep scoring consistent.
     results = session.exec(
         select(PuzzleResult).where(PuzzleResult.player_id == player_id),
     ).all()
@@ -218,9 +230,8 @@ def build_player_stats(
             total_points=0,
         )
 
-    points_table = points_table or settings.points_table
     all_results = session.exec(select(PuzzleResult)).all()
-    aggregates = _aggregate_scores(all_results, points_table)
+    aggregates = _aggregate_scores(all_results)
     player_totals = aggregates.get(player_id, {"points": 0, "seconds": [], "dates": []})
 
     weekday_buckets: Dict[str, List[int]] = defaultdict(list)
@@ -271,14 +282,12 @@ def _default_range_for_scope(scope: str) -> tuple[date, date]:
     today = date.today()
     if scope == "month":
         start = today.replace(day=1)
-        # move to first day of next month then back one day
         if start.month == 12:
             next_month = start.replace(year=start.year + 1, month=1, day=1)
         else:
             next_month = start.replace(month=start.month + 1, day=1)
         end = next_month - timedelta(days=1)
     else:
-        # default to week: Monday-Sunday window for the current week
         start = today - timedelta(days=today.weekday())
         end = start + timedelta(days=6)
     return start, end
@@ -294,14 +303,12 @@ def find_delinquent_players(
         raise ValueError("scope must be 'week' or 'month'")
 
     resolved_start, resolved_end = (start_date, end_date) if start_date and end_date else _default_range_for_scope(scope)
-    # If caller provided only one bound, align to default for the other.
     if start_date and not end_date:
         resolved_end = _default_range_for_scope(scope)[1]
     if end_date and not start_date:
         resolved_start = _default_range_for_scope(scope)[0]
 
     today = date.today()
-    # Only count delinquency up to today; ignore future days in the window.
     if resolved_start > today:
         return WallOfShameResponse(start_date=resolved_start, end_date=today, scope=scope, entries=[])
     resolved_end = min(resolved_end, today)

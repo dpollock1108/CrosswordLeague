@@ -9,20 +9,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _parse_points_table(raw: str | None) -> List[int]:
-    """
-    Accepts a comma-separated string of ints and returns a list.
-    Falls back to a simple default points table.
-    """
-    if not raw:
-        return [10, 8, 6, 4, 2]
-    try:
-        points = [int(value.strip()) for value in raw.split(",") if value.strip()]
-    except ValueError as exc:
-        raise ValueError("POINTS_TABLE must be a comma-separated list of integers") from exc
-    return [p for p in points if p > 0] or [10, 8, 6, 4, 2]
-
-
 def _parse_bool(raw: str | None, default: bool = False) -> bool:
     if raw is None:
         return default
@@ -39,13 +25,16 @@ def _parse_list(raw: str | None) -> List[str]:
 class Settings:
     database_url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", "sqlite:///./crossword.db"))
     admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", "changeme").strip())
-    points_table: List[int] = field(default_factory=lambda: _parse_points_table(os.getenv("POINTS_TABLE")))
     allow_default_admin_token: bool = field(
         default_factory=lambda: _parse_bool(os.getenv("ALLOW_DEFAULT_ADMIN_TOKEN"), default=False),
     )
     disable_admin_auth: bool = field(default_factory=lambda: _parse_bool(os.getenv("DISABLE_ADMIN_AUTH"), default=False))
     allowed_origins: List[str] = field(default_factory=lambda: _parse_list(os.getenv("ALLOWED_ORIGINS")))
     anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", "").strip())
+    google_client_id: str = field(default_factory=lambda: os.getenv("GOOGLE_CLIENT_ID", "").strip())
+    jwt_secret: str = field(default_factory=lambda: os.getenv("JWT_SECRET", "dev-secret-change-me").strip())
+    jwt_algorithm: str = "HS256"
+    jwt_expiry_hours: int = field(default_factory=lambda: int(os.getenv("JWT_EXPIRY_HOURS", "168")))
 
     @property
     def admin_token_configured(self) -> bool:

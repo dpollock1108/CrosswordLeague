@@ -13,7 +13,7 @@ def test_assign_daily_points_handles_ties():
         PuzzleResult(id=3, player_id=3, puzzle_date=date.today(), seconds=45),
     ]
 
-    awarded = assign_daily_points(results, [])
+    awarded = assign_daily_points(results)
 
     assert awarded[1] == 6  # 5 for <=30s +1 for first-place tie
     assert awarded[2] == 6
@@ -32,7 +32,7 @@ def test_assign_daily_points_respects_override():
         ),
     ]
 
-    awarded = assign_daily_points(results, [])
+    awarded = assign_daily_points(results)
 
     assert awarded[1] == 5  # <60s + first bonus
     assert awarded[2] == 25

@@ -6,14 +6,6 @@ from typing import Dict, Iterable, List
 
 from .models import PuzzleResult
 
-# Time-based scoring:
-# - Finish at all = 1
-# - < 120s = 2
-# - < 90s = 3
-# - < 60s = 4
-# - <= 30s = 5
-# First-place (ties included) gets +1 bonus.
-
 
 def _time_points(seconds: int) -> int:
     if seconds <= 30:
@@ -29,13 +21,7 @@ def _time_points(seconds: int) -> int:
 
 def assign_daily_points(
     results: Iterable[PuzzleResult],
-    _unused_points_table: List[int] | None = None,
 ) -> Dict[int, int]:
-    """
-    Given a collection of results for a single puzzle date, return a mapping
-    of player_id -> awarded points using the custom time-based rules.
-    Honors points_override when provided.
-    """
     awarded: Dict[int, int] = {}
     ordered = sorted(results, key=lambda r: (r.seconds, r.recorded_at, r.player_id))
     if not ordered:

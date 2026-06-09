@@ -1,3 +1,18 @@
+export type UserPublic = {
+  id: number;
+  email: string;
+  display_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+  player_id?: number | null;
+  is_admin: boolean;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  user: UserPublic;
+};
+
 export type LeaderboardEntry = {
   player_id: number;
   name: string;
@@ -11,7 +26,6 @@ export type LeaderboardEntry = {
 export type LeaderboardResponse = {
   start_date: string;
   end_date: string;
-  points_table: number[];
   entries: LeaderboardEntry[];
 };
 
@@ -36,6 +50,7 @@ export type Player = {
   id: number;
   name: string;
   handle?: string | null;
+  email?: string | null;
   nyt_username?: string | null;
 };
 
@@ -77,4 +92,102 @@ export type ScreenshotParseResponse = {
   parsed: ParsedLeaderboardEntry[];
   matched_count: number;
   unmatched_count: number;
+};
+
+// League types
+export type LeaguePublic = {
+  id: number;
+  name: string;
+  invite_code: string;
+  creator_id: number;
+  member_count: number;
+  role?: string | null;
+  created_at: string;
+};
+
+export type LeagueMemberPublic = {
+  user_id: number;
+  display_name: string;
+  handle?: string | null;
+  player_id?: number | null;
+  role: string;
+  joined_at: string;
+};
+
+export type LeagueDetail = LeaguePublic & {
+  members: LeagueMemberPublic[];
+};
+
+// Puzzle types
+export type GridCell = {
+  letter: string;
+  is_black: boolean;
+};
+
+export type Clue = {
+  number: number;
+  clue: string;
+  answer?: string; // only present in admin views
+  row: number;
+  col: number;
+  length: number;
+};
+
+export type CluesData = {
+  across: Clue[];
+  down: Clue[];
+};
+
+export type GridData = {
+  cells: GridCell[][];
+};
+
+export type PuzzlePublic = {
+  id: number;
+  puzzle_type: string;
+  puzzle_date: string;
+  size: number;
+  grid_data: string; // JSON string
+  clues_data: string; // JSON string
+  title?: string | null;
+  difficulty?: string | null;
+  status: string;
+  created_at: string;
+};
+
+export type SolveAttempt = {
+  id: number;
+  puzzle_id: number;
+  started_at: string;
+  completed_at?: string | null;
+  seconds?: number | null;
+  grid_state?: string | null;
+  is_complete: boolean;
+};
+
+export type PuzzleTodayResponse = {
+  puzzle: PuzzlePublic;
+  attempt?: SolveAttempt | null;
+};
+
+export type SubmitResult = {
+  correct: boolean;
+  seconds?: number | null;
+  points?: number | null;
+  errors?: Array<{ row: number; col: number }> | null;
+};
+
+export type PuzzleAdminPublic = {
+  id: number;
+  puzzle_type: string;
+  puzzle_date: string;
+  size: number;
+  grid_data: string;
+  clues_data: string;
+  title?: string | null;
+  difficulty?: string | null;
+  status: string;
+  created_by?: string | null;
+  created_at: string;
+  published_at?: string | null;
 };

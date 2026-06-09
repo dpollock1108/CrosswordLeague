@@ -1,9 +1,17 @@
 import type {
+  AuthResponse,
   LeaderboardResponse,
+  LeagueDetail,
+  LeaguePublic,
   Player,
   PlayerStats,
+  PuzzleAdminPublic,
   PuzzleResultInput,
+  PuzzleTodayResponse,
   ScreenshotParseResponse,
+  SolveAttempt,
+  SubmitResult,
+  UserPublic,
   WallOfShameResponse,
 } from "./types";
 
@@ -21,6 +29,35 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(text || res.statusText);
   }
   return (await res.json()) as T;
+}
+
+// Auth
+export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
+  return http<AuthResponse>("/auth/google", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+export async function fetchCurrentUser(jwt: string): Promise<UserPublic> {
+  return http<UserPublic>("/auth/me", {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function updateProfile(
+  jwt: string,
+  data: { display_name?: string; handle?: string },
+): Promise<UserPublic> {
+  return http<UserPublic>("/auth/me", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
 }
 
 export async function fetchLeaderboard(params?: { startDate?: string; endDate?: string }): Promise<LeaderboardResponse> {
@@ -74,7 +111,7 @@ export async function submitResults(
   });
 }
 
-export async function createPlayer(token: string, payload: { name: string; handle?: string; email?: string }) {
+export async function createPlayer(token: string, payload: { name: string; handle?: string; email?: string; nyt_username?: string }) {
   return http<Player>("/players", {
     method: "POST",
     headers: {
@@ -153,13 +190,179 @@ export async function importResultsCsv(
     source?: string | null;
   }>,
   overwrite_existing = true,
-) {
-  return http("/results/import-csv?" + new URLSearchParams({ overwrite_existing: String(overwrite_existing) }), {
+): Promise<{ imported: number; skipped: number; errors: string[] }> {
+  return http<{ imported: number; skipped: number; errors: string[] }>("/results/import-csv?" + new URLSearchParams({ overwrite_existing: String(overwrite_existing) }), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Admin-Token": token,
     },
     body: JSON.stringify(rows),
+  });
+}
+
+// Puzzle endpoints
+export async function fetchTodayPuzzle(jwt: string, type: string = "mini_5x5"): Promise<PuzzleTodayResponse> {
+  return http<PuzzleTodayResponse>(`/puzzles/today?type=${encodeURIComponent(type)}`, {
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
+  });
+}
+
+export async function fetchPuzzle(jwt: string, puzzleId: number): Promise<PuzzleTodayResponse> {
+  return http<PuzzleTodayResponse>(`/puzzles/${puzzleId}`, {
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
+  });
+}
+
+export async function startSolve(jwt: string, puzzleId: number): Promise<SolveAttempt> {
+  return http<SolveAttempt>(`/puzzles/${puzzleId}/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function saveProgress(jwt: string, puzzleId: number, gridState: string): Promise<SolveAttempt> {
+  return http<SolveAttempt>(`/puzzles/${puzzleId}/save`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ grid_state: gridState }),
+  });
+}
+
+export async function submitSolve(jwt: string, puzzleId: number, gridState: string): Promise<SubmitResult> {
+  return http<SubmitResult>(`/puzzles/${puzzleId}/submit`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ grid_state: gridState }),
+  });
+}
+
+// Admin puzzle endpoints (use JWT auth)
+export async function listPuzzlesAdmin(
+  jwt: string,
+  params?: { status?: string; puzzle_type?: string },
+): Promise<PuzzleAdminPublic[]> {
+  const search = new URLSearchParams();
+  if (params?.status) search.append("status", params.status);
+  if (params?.puzzle_type) search.append("puzzle_type", params.puzzle_type);
+  const qs = search.toString();
+  return http<PuzzleAdminPublic[]>(`/puzzles/admin/list${qs ? `?${qs}` : ""}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function generatePuzzleAdmin(
+  jwt: string,
+  data: { puzzle_type: string; puzzle_date: string; difficulty: string },
+): Promise<PuzzleAdminPublic> {
+  return http<PuzzleAdminPublic>("/puzzles/generate", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function createPuzzleAdmin(
+  jwt: string,
+  data: {
+    puzzle_type: string;
+    puzzle_date: string;
+    size: number;
+    grid_data: string;
+    clues_data: string;
+    title?: string;
+    difficulty?: string;
+  },
+): Promise<PuzzleAdminPublic> {
+  return http<PuzzleAdminPublic>("/puzzles", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function publishPuzzleAdmin(
+  jwt: string,
+  puzzleId: number,
+): Promise<PuzzleAdminPublic> {
+  return http<PuzzleAdminPublic>(`/puzzles/${puzzleId}/publish`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function deletePuzzleAdmin(
+  jwt: string,
+  puzzleId: number,
+): Promise<void> {
+  await fetch(`${API_BASE}/puzzles/${puzzleId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
+// League endpoints (JWT auth)
+export async function listLeagues(jwt: string): Promise<LeaguePublic[]> {
+  return http<LeaguePublic[]>("/leagues", {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function createLeague(jwt: string, name: string): Promise<LeaguePublic> {
+  return http<LeaguePublic>("/leagues", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function joinLeague(jwt: string, inviteCode: string): Promise<LeaguePublic> {
+  return http<LeaguePublic>("/leagues/join", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ invite_code: inviteCode }),
+  });
+}
+
+export async function fetchLeague(jwt: string, leagueId: number): Promise<LeagueDetail> {
+  return http<LeagueDetail>(`/leagues/${leagueId}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function fetchLeagueLeaderboard(
+  jwt: string,
+  leagueId: number,
+  params?: { startDate?: string; endDate?: string },
+): Promise<LeaderboardResponse> {
+  const search = new URLSearchParams();
+  if (params?.startDate) search.append("start_date", params.startDate);
+  if (params?.endDate) search.append("end_date", params.endDate);
+  const qs = search.toString();
+  return http<LeaderboardResponse>(`/leagues/${leagueId}/leaderboard${qs ? `?${qs}` : ""}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function leaveLeague(jwt: string, leagueId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}/membership`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
   });
 }

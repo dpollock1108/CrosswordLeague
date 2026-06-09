@@ -24,6 +24,7 @@ class PuzzleResultCreate(BaseModel):
     player_id: int
     puzzle_date: date
     seconds: int = Field(gt=0, description="Completion time in whole seconds")
+    puzzle_type: str = Field(default="nyt_mini", description="Puzzle type identifier")
     points_override: Optional[int] = Field(default=None, description="Override automatic points")
     note: Optional[str] = None
     source: Optional[str] = None
@@ -67,7 +68,6 @@ class LeaderboardEntry(BaseModel):
 class LeaderboardResponse(BaseModel):
     start_date: date
     end_date: date
-    points_table: List[int]
     entries: List[LeaderboardEntry]
 
 
@@ -83,6 +83,115 @@ class PlayerStats(BaseModel):
         default=None,
         description="Average seconds per weekday name",
     )
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class UserPublic(BaseModel):
+    id: int
+    email: str
+    display_name: str
+    handle: Optional[str] = None
+    avatar_url: Optional[str] = None
+    player_id: Optional[int] = None
+    is_admin: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserProfileUpdate(BaseModel):
+    display_name: Optional[str] = None
+    handle: Optional[str] = Field(default=None, min_length=3, max_length=24, pattern=r"^[a-zA-Z0-9_]+$")
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    user: UserPublic
+
+
+# ---------------------------------------------------------------------------
+# Puzzle schemas
+# ---------------------------------------------------------------------------
+
+
+class PuzzlePublic(BaseModel):
+    """Puzzle data sent to clients — NO answers included."""
+    id: int
+    puzzle_type: str
+    puzzle_date: date
+    size: int
+    grid_data: str  # JSON with letters stripped — only black/white cell info
+    clues_data: str  # JSON with answers stripped
+    title: Optional[str] = None
+    difficulty: Optional[str] = None
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PuzzleAdminPublic(BaseModel):
+    """Full puzzle data including answers — admin only."""
+    id: int
+    puzzle_type: str
+    puzzle_date: date
+    size: int
+    grid_data: str
+    clues_data: str
+    title: Optional[str] = None
+    difficulty: Optional[str] = None
+    status: str
+    created_by: Optional[str] = None
+    created_at: datetime
+    published_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PuzzleCreate(BaseModel):
+    puzzle_type: str
+    puzzle_date: date
+    size: int
+    grid_data: str
+    clues_data: str
+    title: Optional[str] = None
+    difficulty: Optional[str] = None
+
+
+class PuzzleGenerateRequest(BaseModel):
+    puzzle_type: str = "mini_5x5"
+    puzzle_date: date
+    difficulty: str = "medium"
+
+
+class SolveAttemptPublic(BaseModel):
+    id: int
+    puzzle_id: int
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    seconds: Optional[int] = None
+    grid_state: Optional[str] = None
+    is_complete: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GridSubmission(BaseModel):
+    grid_state: str  # JSON of user's filled grid
+
+
+class SubmitResult(BaseModel):
+    correct: bool
+    seconds: Optional[int] = None
+    points: Optional[int] = None
+    errors: Optional[List[dict]] = None  # [{row, col}, ...] if incorrect
+
+
+class PuzzleTodayResponse(BaseModel):
+    puzzle: PuzzlePublic
+    attempt: Optional[SolveAttemptPublic] = None
 
 
 class HealthResponse(BaseModel):
@@ -102,6 +211,44 @@ class WallOfShameResponse(BaseModel):
     end_date: date
     scope: str
     entries: List[DelinquentPlayer]
+
+
+# ---------------------------------------------------------------------------
+# League schemas
+# ---------------------------------------------------------------------------
+
+
+class LeagueCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+
+
+class LeagueJoin(BaseModel):
+    invite_code: str = Field(min_length=4, max_length=16)
+
+
+class LeagueMemberPublic(BaseModel):
+    user_id: int
+    display_name: str
+    handle: Optional[str] = None
+    player_id: Optional[int] = None
+    role: str
+    joined_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeaguePublic(BaseModel):
+    id: int
+    name: str
+    invite_code: str
+    creator_id: int
+    member_count: int
+    role: Optional[str] = None  # current user's role in this league
+    created_at: datetime
+
+
+class LeagueDetail(LeaguePublic):
+    members: List[LeagueMemberPublic]
 
 
 class ParsedLeaderboardEntry(BaseModel):
