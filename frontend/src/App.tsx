@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-do
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
+import Landing from "./pages/Landing";
 import ResultsDashboard from "./pages/ResultsDashboard";
 import NytTracker from "./pages/NytTracker";
 import ScoringPage from "./pages/ScoringPage";
@@ -108,8 +109,16 @@ function UserMenu() {
 export default function App() {
   const { user, loading } = useAuth();
 
+  // Avoid flashing the landing page while the stored session is being validated.
+  if (loading) return null;
+
+  // Signed-out visitors get the explainer / sign-in landing page.
+  if (!user) {
+    return <Landing />;
+  }
+
   // Logged-in user without a handle → force onboarding
-  if (!loading && user && !user.handle) {
+  if (!user.handle) {
     return <HandleSetup />;
   }
 
