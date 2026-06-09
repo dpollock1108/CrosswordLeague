@@ -58,7 +58,10 @@ class SolveAttempt(SQLModel, table=True):
     puzzle_id: int = Field(foreign_key="puzzle.id", index=True, nullable=False)
     started_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     completed_at: Optional[datetime] = Field(default=None)
-    seconds: Optional[int] = Field(default=None)
+    # Accumulated *active* solve time (seconds the page was open), not wall clock.
+    seconds: Optional[int] = Field(default=0)
+    # Server timestamp of the last heartbeat, used to accrue active time.
+    last_tick_at: Optional[datetime] = Field(default=None)
     grid_state: Optional[str] = Field(default=None, sa_column=Column(Text))  # JSON: current grid
     is_complete: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)

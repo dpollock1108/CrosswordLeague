@@ -35,6 +35,11 @@ export default function DailyPuzzle() {
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Latest grid snapshot for the heartbeat, so it doesn't reset on each keystroke.
+  const latestStateRef = useRef<{ gridData: GridData | null; userLetters: string[][] }>({
+    gridData: null,
+    userLetters: [],
+  });
 
   // Load puzzle
   useEffect(() => {
@@ -66,8 +71,9 @@ export default function DailyPuzzle() {
 
         if (resp.attempt?.is_complete) {
           setIsComplete(true);
-          setElapsed(resp.attempt.seconds ?? 0);
         }
+        // Resume the display clock from the server's accumulated active time.
+        setElapsed(resp.attempt?.seconds ?? 0);
 
         // Auto-select first non-black cell
         for (let r = 0; r < gd.cells.length; r++) {
@@ -94,34 +100,45 @@ export default function DailyPuzzle() {
     }
   }, [token, puzzle, attempt, isComplete]);
 
-  // Timer
+  // Display timer: count only while the page is visible (matches the
+  // server's active-time accrual, which pauses when the tab is closed).
   useEffect(() => {
     if (isComplete || !attempt) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
-    const start = new Date(attempt.started_at).getTime();
-    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
-    tick();
-    timerRef.current = setInterval(tick, 1000);
+    timerRef.current = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        setElapsed((e) => e + 1);
+      }
+    }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [attempt, isComplete]);
 
-  // Auto-save every 30s
+  // Keep the latest grid snapshot in a ref so the heartbeat can read it
+  // without re-creating its interval on every keystroke.
+  useEffect(() => {
+    latestStateRef.current = { gridData, userLetters };
+  }, [gridData, userLetters]);
+
+  // Heartbeat: save progress AND accrue active time on the server every ~2s
+  // while the page is open. Skipped when hidden so closed time doesn't count.
+  // A fixed interval (independent of typing) guarantees regular accrual.
   useEffect(() => {
     if (!token || !puzzle || isComplete) return;
     autoSaveRef.current = setInterval(() => {
-      if (gridData) {
-        const state: GridData = {
-          cells: gridData.cells.map((row, r) =>
-            row.map((cell, c) => ({ ...cell, letter: userLetters[r]?.[c] || "" })),
-          ),
-        };
-        saveProgress(token, puzzle.id, JSON.stringify(state)).catch(() => {});
-      }
-    }, 30000);
+      if (document.visibilityState !== "visible") return;
+      const { gridData: gd, userLetters: ul } = latestStateRef.current;
+      if (!gd) return;
+      const state: GridData = {
+        cells: gd.cells.map((row, r) =>
+          row.map((cell, c) => ({ ...cell, letter: ul[r]?.[c] || "" })),
+        ),
+      };
+      saveProgress(token, puzzle.id, JSON.stringify(state)).catch(() => {});
+    }, 2000);
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
-  }, [token, puzzle, gridData, userLetters, isComplete]);
+  }, [token, puzzle, isComplete]);
 
   // Cell click handler
   const onCellClick = useCallback(
