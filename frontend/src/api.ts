@@ -62,10 +62,15 @@ export async function updateProfile(
   });
 }
 
-export async function fetchLeaderboard(params?: { startDate?: string; endDate?: string }): Promise<LeaderboardResponse> {
+export async function fetchLeaderboard(params?: {
+  startDate?: string;
+  endDate?: string;
+  puzzleTypes?: string[];
+}): Promise<LeaderboardResponse> {
   const search = new URLSearchParams();
   if (params?.startDate) search.append("start_date", params.startDate);
   if (params?.endDate) search.append("end_date", params.endDate);
+  for (const t of params?.puzzleTypes || []) search.append("puzzle_type", t);
   const qs = search.toString();
   return http<LeaderboardResponse>(`/leaderboard${qs ? `?${qs}` : ""}`);
 }

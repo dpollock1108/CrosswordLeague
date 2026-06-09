@@ -179,7 +179,7 @@ def league_leaderboard_endpoint(
     league_id: int,
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
-    puzzle_type: Optional[str] = Query(None),
+    puzzle_type: Optional[List[str]] = Query(None),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> LeaderboardResponse:
@@ -195,7 +195,7 @@ def league_leaderboard_endpoint(
 
     member_ids = league_member_player_ids(session, league_id)
     return calculate_leaderboard(
-        session, start_date, end_date, puzzle_type=puzzle_type, player_ids=member_ids
+        session, start_date, end_date, puzzle_types=puzzle_type, player_ids=member_ids
     )
 
 

@@ -4,6 +4,15 @@ import type { LeaderboardEntry, LeaderboardResponse, WallOfShameResponse } from 
 
 type Mode = "week" | "month";
 type ViewMode = "leaderboard" | "wall";
+type PuzzleFilter = "all" | "mini" | "medium";
+
+// Maps the UI filter to backend puzzle_type values. "Mini" includes legacy
+// NYT minis alongside hosted 5x5s; "all" sends no filter.
+const PUZZLE_TYPE_GROUPS: Record<PuzzleFilter, string[] | undefined> = {
+  all: undefined,
+  mini: ["nyt_mini", "mini_5x5"],
+  medium: ["medium_10x10"],
+};
 
 function formatSeconds(seconds?: number | null) {
   if (seconds === undefined || seconds === null) return "—";
@@ -40,6 +49,7 @@ function formatDate(date: Date) {
 export default function ResultsDashboard() {
   const [mode, setMode] = useState<Mode>("week");
   const [view, setView] = useState<ViewMode>("leaderboard");
+  const [puzzleFilter, setPuzzleFilter] = useState<PuzzleFilter>("all");
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [wall, setWall] = useState<WallOfShameResponse | null>(null);
@@ -70,6 +80,7 @@ export default function ResultsDashboard() {
       fetchLeaderboard({
         startDate: formatDate(start),
         endDate: formatDate(end),
+        puzzleTypes: PUZZLE_TYPE_GROUPS[puzzleFilter],
       }),
       fetchWallOfShame({
         scope: mode,
@@ -83,7 +94,7 @@ export default function ResultsDashboard() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [start, end]);
+  }, [start, end, puzzleFilter, mode]);
 
   const podium = data?.entries.slice(0, 3) || [];
   const rest = data?.entries.slice(3) || [];
@@ -101,10 +112,15 @@ export default function ResultsDashboard() {
           <ViewToggle view={view} onChange={setView} />
         </div>
       </header>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button onClick={() => setOffset((n) => n - 1)}>Previous</button>
         <button onClick={() => setOffset(0)}>Current</button>
         <button onClick={() => setOffset((n) => n + 1)}>Next</button>
+        {view === "leaderboard" && (
+          <div style={{ marginLeft: "auto" }}>
+            <PuzzleTypeToggle filter={puzzleFilter} onChange={setPuzzleFilter} />
+          </div>
+        )}
       </div>
       {loading && <div>Loading leaderboard…</div>}
       {error && <div style={{ color: "crimson" }}>Error: {error}</div>}
@@ -230,6 +246,37 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (view: ViewM
       >
         Wall of Shame
       </button>
+    </div>
+  );
+}
+
+function PuzzleTypeToggle({
+  filter,
+  onChange,
+}: {
+  filter: PuzzleFilter;
+  onChange: (filter: PuzzleFilter) => void;
+}) {
+  const options: { value: PuzzleFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "mini", label: "Mini" },
+    { value: "medium", label: "Medium" },
+  ];
+  return (
+    <div style={{ display: "inline-flex", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          style={{
+            borderRadius: 0,
+            background: filter === opt.value ? "linear-gradient(135deg, #2563eb, #0ea5e9)" : "#ffffff",
+            color: filter === opt.value ? "#ffffff" : "#0f172a",
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
