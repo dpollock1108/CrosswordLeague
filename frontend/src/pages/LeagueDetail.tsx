@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { fetchLeague, fetchLeagueLeaderboard, leaveLeague } from "../api";
+import {
+  approveLeagueRequest,
+  denyLeagueRequest,
+  fetchLeague,
+  fetchLeagueLeaderboard,
+  leaveLeague,
+  updateLeagueVisibility,
+} from "../api";
 import type { LeaderboardResponse, LeagueDetail as LeagueDetailType } from "../types";
 
 function formatSeconds(s?: number | null): string {
@@ -64,6 +71,37 @@ export default function LeagueDetail() {
     }
   };
 
+  const handleToggleVisibility = async () => {
+    if (!token || !league) return;
+    const next = league.visibility === "public" ? "private" : "public";
+    try {
+      await updateLeagueVisibility(token, league.id, next);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update visibility");
+    }
+  };
+
+  const handleApprove = async (userId: number) => {
+    if (!token || !league) return;
+    try {
+      await approveLeagueRequest(token, league.id, userId);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to approve request");
+    }
+  };
+
+  const handleDeny = async (userId: number) => {
+    if (!token || !league) return;
+    try {
+      await denyLeagueRequest(token, league.id, userId);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to deny request");
+    }
+  };
+
   if (loading) return <p className="muted">Loading…</p>;
   if (error) {
     return (
@@ -99,7 +137,60 @@ export default function LeagueDetail() {
             {copied ? "Copied!" : "Copy"}
           </button>
         </div>
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span className="muted" style={{ fontSize: 14 }}>Visibility:</span>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "2px 10px",
+              borderRadius: 999,
+              background: league.visibility === "private" ? "#fef3c7" : "#dcfce7",
+              color: league.visibility === "private" ? "#92400e" : "#166534",
+            }}
+          >
+            {league.visibility === "private" ? "Private — approval required" : "Public — open to anyone with the code"}
+          </span>
+          {league.role === "admin" && (
+            <button
+              onClick={handleToggleVisibility}
+              style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", cursor: "pointer", fontSize: 13 }}
+            >
+              Make {league.visibility === "private" ? "public" : "private"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {league.role === "admin" && league.pending_requests.length > 0 && (
+        <div>
+          <h3 style={{ marginBottom: 8 }}>Pending requests ({league.pending_requests.length})</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {league.pending_requests.map((r) => (
+              <div
+                key={r.user_id}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, border: "1px solid #fde68a", background: "#fffbeb" }}
+              >
+                <span>{r.handle || r.display_name}</span>
+                <span style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => handleApprove(r.user_id)}
+                    style={{ padding: "4px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "white", cursor: "pointer", fontSize: 13 }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleDeny(r.user_id)}
+                    style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#991b1b", cursor: "pointer", fontSize: 13 }}
+                  >
+                    Deny
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <h3 style={{ marginBottom: 8 }}>Leaderboard</h3>

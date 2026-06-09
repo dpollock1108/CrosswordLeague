@@ -95,14 +95,23 @@ export type ScreenshotParseResponse = {
 };
 
 // League types
+export type LeagueVisibility = "public" | "private";
+
 export type LeaguePublic = {
   id: number;
   name: string;
   invite_code: string;
   creator_id: number;
+  visibility: LeagueVisibility;
   member_count: number;
   role?: string | null;
+  membership_status?: string | null; // "active" | "pending" for current user
   created_at: string;
+};
+
+export type LeagueJoinResult = {
+  league: LeaguePublic;
+  status: "active" | "pending";
 };
 
 export type LeagueMemberPublic = {
@@ -111,11 +120,13 @@ export type LeagueMemberPublic = {
   handle?: string | null;
   player_id?: number | null;
   role: string;
+  status: string;
   joined_at: string;
 };
 
 export type LeagueDetail = LeaguePublic & {
   members: LeagueMemberPublic[];
+  pending_requests: LeagueMemberPublic[];
 };
 
 // Puzzle types
