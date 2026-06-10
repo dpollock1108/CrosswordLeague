@@ -105,7 +105,9 @@ app/
 frontend/src/
   contexts/AuthContext.tsx  — Auth state (Google login, JWT persistence)
   pages/
-    ResultsDashboard.tsx    — Leaderboard with week/month navigation
+    Landing.tsx             — Signed-out explainer + sign-in
+    Leagues.tsx             — League list + create/join (home)
+    LeagueDetail.tsx        — League leaderboard, members, admin controls
     DailyPuzzle.tsx         — Interactive crossword solver
     Profile.tsx             — Authenticated user's profile + handle editor
     ScoringPage.tsx         — Scoring rules documentation
@@ -175,12 +177,13 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 
 | Route | Page | Access |
 |---|---|---|
-| `/` | Global leaderboard | Public |
+| `/` (signed out) | Landing / sign-in | Public |
+| `/` (signed in) | Redirects to `/leagues` | Authenticated |
+| `/leagues` | League list + create/join (home) | Authenticated |
+| `/leagues/:id` | League leaderboard + members | Member |
 | `/play` | Daily crossword solver | Authenticated |
 | `/profile` | Your profile + handle editor | Authenticated |
-| `/scoring` | Scoring rules | Public |
-| `/leagues` | League list + create/join | Authenticated |
-| `/leagues/:id` | League leaderboard + members | Member |
+| `/scoring` | Scoring rules | Authenticated |
 | `/builder` | Puzzle builder (manual + AI) | Admin only |
 | `/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
 

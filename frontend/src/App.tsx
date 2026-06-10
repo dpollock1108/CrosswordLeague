@@ -1,9 +1,8 @@
-import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
 import Landing from "./pages/Landing";
-import ResultsDashboard from "./pages/ResultsDashboard";
 import NytTracker from "./pages/NytTracker";
 import ScoringPage from "./pages/ScoringPage";
 import DailyPuzzle from "./pages/DailyPuzzle";
@@ -17,13 +16,12 @@ function Nav() {
   const { user } = useAuth();
 
   const links = [
+    { to: "/leagues", label: "Leagues" },
     { to: "/play", label: "Play" },
-    { to: "/", label: "Leaderboard" },
     { to: "/scoring", label: "Scoring" },
   ];
 
   if (user) {
-    links.push({ to: "/leagues", label: "Leagues" });
     links.push({ to: "/profile", label: "My Profile" });
   }
 
@@ -136,7 +134,7 @@ export default function App() {
       </header>
       <main>
         <Routes>
-          <Route path="/" element={<ResultsDashboard />} />
+          <Route path="/" element={<Navigate to="/leagues" replace />} />
           <Route path="/play" element={<DailyPuzzle />} />
           <Route path="/builder" element={<PuzzleBuilder />} />
           <Route path="/nyt-tracker" element={<NytTracker />} />
