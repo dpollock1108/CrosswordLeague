@@ -10,6 +10,7 @@ import {
   updateLeagueVisibility,
 } from "../api";
 import type { LeaderboardResponse, LeagueDetail as LeagueDetailType } from "../types";
+import ScoringConfigEditor from "../components/ScoringConfigEditor";
 
 function formatSeconds(s?: number | null): string {
   if (s == null) return "—";
@@ -243,6 +244,13 @@ export default function LeagueDetail() {
           ))}
         </div>
       </div>
+
+      {league.role === "admin" && token && (
+        <div>
+          <h3 style={{ marginBottom: 8 }}>Scoring (admin)</h3>
+          <ScoringConfigEditor leagueId={league.id} token={token} />
+        </div>
+      )}
     </div>
   );
 }

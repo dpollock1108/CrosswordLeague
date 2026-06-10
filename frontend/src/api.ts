@@ -4,6 +4,7 @@ import type {
   LeagueDetail,
   LeagueJoinResult,
   LeaguePublic,
+  LeagueScoringConfig,
   LeagueVisibility,
   Player,
   PlayerStats,
@@ -396,6 +397,27 @@ export async function fetchLeagueLeaderboard(
   const qs = search.toString();
   return http<LeaderboardResponse>(`/leagues/${leagueId}/leaderboard${qs ? `?${qs}` : ""}`, {
     headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function fetchLeagueScoringConfig(
+  jwt: string,
+  leagueId: number,
+): Promise<LeagueScoringConfig> {
+  return http<LeagueScoringConfig>(`/leagues/${leagueId}/scoring-config`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function updateLeagueScoringConfig(
+  jwt: string,
+  leagueId: number,
+  config: LeagueScoringConfig,
+): Promise<LeagueScoringConfig> {
+  return http<LeagueScoringConfig>(`/leagues/${leagueId}/scoring-config`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+    body: JSON.stringify(config),
   });
 }
 

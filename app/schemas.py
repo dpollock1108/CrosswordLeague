@@ -265,6 +265,27 @@ class LeagueDetail(LeaguePublic):
     pending_requests: List[LeagueMemberPublic] = []  # populated for admins only
 
 
+class ScoringTier(BaseModel):
+    # Finish in <= max_seconds to earn `points`. null = catch-all (anyone slower).
+    max_seconds: Optional[int] = Field(default=None, ge=1, le=86400)
+    points: int = Field(ge=0, le=1000)
+
+
+class CategoryScoring(BaseModel):
+    tiers: List[ScoringTier] = Field(min_length=1, max_length=20)
+    bonus: int = Field(default=1, ge=0, le=1000)  # first-place daily bonus
+
+
+class LeagueScoringConfigPublic(BaseModel):
+    mini: CategoryScoring
+    medium: CategoryScoring
+
+
+class LeagueScoringConfigUpdate(BaseModel):
+    mini: CategoryScoring
+    medium: CategoryScoring
+
+
 class ParsedLeaderboardEntry(BaseModel):
     nyt_username: str
     time_str: str

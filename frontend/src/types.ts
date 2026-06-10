@@ -129,6 +129,21 @@ export type LeagueDetail = LeaguePublic & {
   pending_requests: LeagueMemberPublic[];
 };
 
+export type ScoringTier = {
+  max_seconds: number | null; // null = catch-all (anyone slower)
+  points: number;
+};
+
+export type CategoryScoring = {
+  tiers: ScoringTier[];
+  bonus: number;
+};
+
+export type LeagueScoringConfig = {
+  mini: CategoryScoring;
+  medium: CategoryScoring;
+};
+
 // Puzzle types
 export type GridCell = {
   letter: string;

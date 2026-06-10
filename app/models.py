@@ -80,6 +80,19 @@ class League(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 
+class LeagueScoringConfig(SQLModel, table=True):
+    __tablename__ = "league_scoring_config"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    league_id: int = Field(foreign_key="league.id", index=True, sa_column_kwargs={"unique": True})
+    # JSON arrays of [max_seconds_or_null, points] tiers, one per category.
+    mini_tiers: str = Field(sa_column=Column(Text, nullable=False))
+    mini_bonus: int = Field(default=1)
+    medium_tiers: str = Field(sa_column=Column(Text, nullable=False))
+    medium_bonus: int = Field(default=1)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
 class LeagueMembership(SQLModel, table=True):
     __tablename__ = "league_membership"
     __table_args__ = (UniqueConstraint("league_id", "user_id", name="uix_league_user"),)

@@ -20,7 +20,14 @@ from .schemas import (
     PuzzleResultPublic,
     WallOfShameResponse,
 )
-from .scoring import assign_daily_points, group_results_by_date
+from .scoring import (
+    DEFAULT_BONUS,
+    DEFAULT_TIERS,
+    assign_daily_points,
+    category_for,
+    group_results_by_date,
+    points_for_tiers,
+)
 
 
 def create_player(session: Session, payload: PlayerCreate) -> Player:
@@ -103,15 +110,43 @@ def store_results(session: Session, payload: BulkPuzzleResultCreate) -> List[Puz
     return saved
 
 
-def _aggregate_scores(results: Iterable[PuzzleResult]) -> Dict[int, Dict[str, object]]:
-    grouped = group_results_by_date(results)
+def _aggregate_scores(
+    results: Iterable[PuzzleResult],
+    scoring_config: Optional[Dict[str, dict]] = None,
+) -> Dict[int, Dict[str, object]]:
     aggregates: Dict[int, Dict[str, object]] = defaultdict(lambda: {"points": 0, "seconds": [], "dates": []})
 
-    for _, daily_results in grouped.items():
-        daily_points = assign_daily_points(daily_results)
-        for result in daily_results:
+    if scoring_config is None:
+        # Default path: fixed tiers + bonus, all results in a day compared together.
+        grouped = group_results_by_date(results)
+        for _, daily_results in grouped.items():
+            daily_points = assign_daily_points(daily_results)
+            for result in daily_results:
+                player_totals = aggregates[result.player_id]
+                player_totals["points"] += daily_points.get(result.player_id, 0)
+                player_totals["seconds"].append(result.seconds)
+                player_totals["dates"].append(result.puzzle_date)
+        return aggregates
+
+    # League path: per (date, category) tiers + per-category first-place bonus.
+    groups: Dict[tuple, List[PuzzleResult]] = defaultdict(list)
+    for result in results:
+        groups[(result.puzzle_date, category_for(result.puzzle_type))].append(result)
+
+    for (_, category), group in groups.items():
+        cfg = scoring_config.get(category) or {"tiers": DEFAULT_TIERS, "bonus": DEFAULT_BONUS}
+        tiers = cfg["tiers"]
+        bonus = cfg["bonus"]
+        best_time = min(r.seconds for r in group)
+        for result in group:
+            if result.points_override is not None:
+                pts = result.points_override
+            else:
+                pts = points_for_tiers(result.seconds, tiers)
+                if result.seconds == best_time:
+                    pts += bonus
             player_totals = aggregates[result.player_id]
-            player_totals["points"] += daily_points.get(result.player_id, 0)
+            player_totals["points"] += pts
             player_totals["seconds"].append(result.seconds)
             player_totals["dates"].append(result.puzzle_date)
 
@@ -142,6 +177,7 @@ def calculate_leaderboard(
     end_date: Optional[date],
     puzzle_types: Optional[list[str]] = None,
     player_ids: Optional[set[int]] = None,
+    scoring_config: Optional[Dict[str, dict]] = None,
 ) -> LeaderboardResponse:
     # An empty player_ids set means "scope to nobody" — return an empty board
     # rather than (incorrectly) falling through to the global leaderboard.
@@ -175,7 +211,7 @@ def calculate_leaderboard(
     resolved_start = start_date or min(result.puzzle_date for result in results)
     resolved_end = end_date or max(result.puzzle_date for result in results)
 
-    aggregates = _aggregate_scores(results)
+    aggregates = _aggregate_scores(results, scoring_config=scoring_config)
     players = session.exec(select(Player).where(Player.id.in_(list(aggregates.keys())))).all()
     player_lookup = {player.id: player for player in players}
 
