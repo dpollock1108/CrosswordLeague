@@ -12,6 +12,7 @@ from ..league_service import (
     LeagueError,
     approve_request,
     create_league,
+    delete_league,
     deny_request,
     get_league_members,
     get_membership,
@@ -23,6 +24,8 @@ from ..league_service import (
     league_member_player_ids,
     leave_league,
     list_user_leagues,
+    remove_member,
+    rename_league,
     set_scoring_config,
     set_visibility,
 )
@@ -154,10 +157,44 @@ def update_league_endpoint(
 ) -> LeaguePublic:
     league = _require_league(session, league_id)
     _require_admin(session, league_id, user)
-    league = set_visibility(session, league, body.visibility)
+    if body.name is not None:
+        league = rename_league(session, league, body.name)
+    if body.visibility is not None:
+        league = set_visibility(session, league, body.visibility)
     membership = get_membership(session, league_id, user.id)
     count = len(get_league_members(session, league_id))
     return _to_public(league, member_count=count, membership=membership)
+
+
+@router.delete("/{league_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_league_endpoint(
+    league_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    _require_league(session, league_id)
+    _require_admin(session, league_id, user)
+    delete_league(session, league_id)
+
+
+@router.delete("/{league_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member_endpoint(
+    league_id: int,
+    user_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    _require_league(session, league_id)
+    _require_admin(session, league_id, user)
+    if user_id == user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use 'leave league' to remove yourself.",
+        )
+    try:
+        remove_member(session, league_id, user_id)
+    except LeagueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.post("/{league_id}/requests/{user_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
