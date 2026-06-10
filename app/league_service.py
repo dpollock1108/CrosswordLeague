@@ -129,6 +129,40 @@ def set_visibility(session: Session, league: League, visibility: str) -> League:
     return league
 
 
+def rename_league(session: Session, league: League, name: str) -> League:
+    league.name = name.strip()
+    session.add(league)
+    session.commit()
+    session.refresh(league)
+    return league
+
+
+def delete_league(session: Session, league_id: int) -> None:
+    """Delete a league and all of its memberships and scoring config."""
+    for m in session.exec(
+        select(LeagueMembership).where(LeagueMembership.league_id == league_id)
+    ).all():
+        session.delete(m)
+    cfg = session.exec(
+        select(LeagueScoringConfig).where(LeagueScoringConfig.league_id == league_id)
+    ).first()
+    if cfg:
+        session.delete(cfg)
+    league = session.get(League, league_id)
+    if league:
+        session.delete(league)
+    session.commit()
+
+
+def remove_member(session: Session, league_id: int, user_id: int) -> None:
+    """Admin removes another member (active or pending) from the league."""
+    membership = get_membership(session, league_id, user_id)
+    if not membership:
+        raise LeagueError("That user is not in this league.")
+    session.delete(membership)
+    session.commit()
+
+
 def approve_request(session: Session, league_id: int, user_id: int) -> None:
     m = get_membership(session, league_id, user_id)
     if not m or m.status != "pending":
