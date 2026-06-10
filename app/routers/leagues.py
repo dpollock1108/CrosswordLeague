@@ -16,23 +16,29 @@ from ..league_service import (
     get_league_members,
     get_membership,
     get_pending_requests,
+    get_scoring_config,
     is_active_member,
     is_admin,
     join_league,
     league_member_player_ids,
     leave_league,
     list_user_leagues,
+    set_scoring_config,
     set_visibility,
 )
 from ..models import League, LeagueMembership, User
 from ..schemas import (
+    CategoryScoring,
     LeaderboardResponse,
     LeagueCreate,
     LeagueDetail,
     LeagueJoin,
     LeagueJoinResult,
     LeaguePublic,
+    LeagueScoringConfigPublic,
+    LeagueScoringConfigUpdate,
     LeagueUpdate,
+    ScoringTier,
 )
 from ..services import calculate_leaderboard, default_date_window
 
@@ -55,6 +61,16 @@ def _to_public(
         membership_status=membership.status if membership else None,
         created_at=league.created_at,
     )
+
+
+def _config_to_public(cfg: dict) -> LeagueScoringConfigPublic:
+    def cat(c: dict) -> CategoryScoring:
+        return CategoryScoring(
+            tiers=[ScoringTier(max_seconds=m, points=p) for (m, p) in c["tiers"]],
+            bonus=c["bonus"],
+        )
+
+    return LeagueScoringConfigPublic(mini=cat(cfg["mini"]), medium=cat(cfg["medium"]))
 
 
 def _require_league(session: Session, league_id: int) -> League:
@@ -195,8 +211,51 @@ def league_leaderboard_endpoint(
 
     member_ids = league_member_player_ids(session, league_id)
     return calculate_leaderboard(
-        session, start_date, end_date, puzzle_types=puzzle_type, player_ids=member_ids
+        session,
+        start_date,
+        end_date,
+        puzzle_types=puzzle_type,
+        player_ids=member_ids,
+        scoring_config=get_scoring_config(session, league_id),
     )
+
+
+@router.get("/{league_id}/scoring-config", response_model=LeagueScoringConfigPublic)
+def get_scoring_config_endpoint(
+    league_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> LeagueScoringConfigPublic:
+    _require_league(session, league_id)
+    if not is_active_member(session, league_id, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be an active member to view scoring.",
+        )
+    return _config_to_public(get_scoring_config(session, league_id))
+
+
+@router.put("/{league_id}/scoring-config", response_model=LeagueScoringConfigPublic)
+def update_scoring_config_endpoint(
+    league_id: int,
+    body: LeagueScoringConfigUpdate,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> LeagueScoringConfigPublic:
+    _require_league(session, league_id)
+    _require_admin(session, league_id, user)
+    try:
+        set_scoring_config(
+            session,
+            league_id,
+            mini_tiers=[(t.max_seconds, t.points) for t in body.mini.tiers],
+            mini_bonus=body.mini.bonus,
+            medium_tiers=[(t.max_seconds, t.points) for t in body.medium.tiers],
+            medium_bonus=body.medium.bonus,
+        )
+    except LeagueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return _config_to_public(get_scoring_config(session, league_id))
 
 
 @router.delete("/{league_id}/membership", status_code=status.HTTP_204_NO_CONTENT)

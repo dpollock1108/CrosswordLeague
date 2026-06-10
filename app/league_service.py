@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import json
 import secrets
 import string
 from typing import List, Optional, Tuple
 
 from sqlmodel import Session, select
 
-from .models import League, LeagueMembership, User
+from .models import League, LeagueMembership, LeagueScoringConfig, User
 from .schemas import LeagueMemberPublic
+from .scoring import DEFAULT_BONUS, DEFAULT_TIERS, Tier, sort_tiers
 
 _INVITE_ALPHABET = string.ascii_uppercase + string.digits
 _INVITE_LENGTH = 8
@@ -213,3 +215,73 @@ def league_member_player_ids(session: Session, league_id: int) -> set[int]:
         )
     ).all()
     return {pid for pid in rows if pid is not None}
+
+
+# ---------------------------------------------------------------------------
+# Per-league scoring configuration
+# ---------------------------------------------------------------------------
+
+
+def _tiers_to_json(tiers: List[Tier]) -> str:
+    return json.dumps([[max_s, pts] for (max_s, pts) in sort_tiers(tiers)])
+
+
+def _tiers_from_json(raw: str) -> List[Tier]:
+    return sort_tiers([(t[0], t[1]) for t in json.loads(raw)])
+
+
+def _validate_tiers(tiers: List[Tier], label: str) -> None:
+    if not tiers:
+        raise LeagueError(f"{label}: at least one scoring tier is required.")
+    if sum(1 for (max_s, _) in tiers if max_s is None) > 1:
+        raise LeagueError(f"{label}: only one catch-all tier (no time limit) is allowed.")
+    seen: set = set()
+    for max_s, _ in tiers:
+        if max_s in seen:
+            raise LeagueError(f"{label}: duplicate time threshold {max_s}.")
+        seen.add(max_s)
+
+
+def get_scoring_config(session: Session, league_id: int) -> dict:
+    """Scorer-facing config: {category: {'tiers': [(max,pts)], 'bonus': int}}.
+
+    Returns defaults for any category the league hasn't customized."""
+    row = session.exec(
+        select(LeagueScoringConfig).where(LeagueScoringConfig.league_id == league_id)
+    ).first()
+    if not row:
+        default = {"tiers": DEFAULT_TIERS, "bonus": DEFAULT_BONUS}
+        return {"mini": default, "medium": default}
+    return {
+        "mini": {"tiers": _tiers_from_json(row.mini_tiers), "bonus": row.mini_bonus},
+        "medium": {"tiers": _tiers_from_json(row.medium_tiers), "bonus": row.medium_bonus},
+    }
+
+
+def set_scoring_config(
+    session: Session,
+    league_id: int,
+    mini_tiers: List[Tier],
+    mini_bonus: int,
+    medium_tiers: List[Tier],
+    medium_bonus: int,
+) -> LeagueScoringConfig:
+    _validate_tiers(mini_tiers, "Mini")
+    _validate_tiers(medium_tiers, "Medium")
+
+    row = session.exec(
+        select(LeagueScoringConfig).where(LeagueScoringConfig.league_id == league_id)
+    ).first()
+    if row is None:
+        row = LeagueScoringConfig(league_id=league_id)
+    row.mini_tiers = _tiers_to_json(mini_tiers)
+    row.mini_bonus = mini_bonus
+    row.medium_tiers = _tiers_to_json(medium_tiers)
+    row.medium_bonus = medium_bonus
+    from datetime import datetime
+
+    row.updated_at = datetime.utcnow()
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
