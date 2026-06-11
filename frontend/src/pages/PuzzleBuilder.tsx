@@ -638,11 +638,22 @@ function PuzzlePreview({
 
 // ─── Manage Puzzles ─────────────────────────────────────────────────────────
 
+function PuzzleAdminPreview({ puzzle }: { puzzle: PuzzleAdminPublic }) {
+  try {
+    const grid = JSON.parse(puzzle.grid_data);
+    const clues = JSON.parse(puzzle.clues_data);
+    return <PuzzlePreview size={puzzle.size} gridData={grid} cluesData={clues} />;
+  } catch {
+    return <p style={{ color: "crimson" }}>Could not parse this puzzle's data.</p>;
+  }
+}
+
 function ManagePuzzles({ token }: { token: string }) {
   const [puzzles, setPuzzles] = useState<PuzzleAdminPublic[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "draft" | "published">("all");
+  const [viewId, setViewId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -729,65 +740,86 @@ function ManagePuzzles({ token }: { token: string }) {
 
       <div style={{ display: "grid", gap: 12 }}>
         {puzzles.map((p) => (
-          <div
-            key={p.id}
-            className="card"
-            style={{ margin: 0, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}
-          >
-            <div>
-              <strong>{p.title || "Untitled"}</strong>{" "}
-              <span style={{ color: "#6b7280", fontSize: 13 }}>
-                #{p.id} · {p.puzzle_type} · {p.puzzle_date} · by {p.created_by || "unknown"}
-              </span>
+          <div key={p.id} style={{ display: "grid", gap: 8 }}>
+            <div
+              className="card"
+              style={{ margin: 0, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}
+            >
+              <div>
+                <strong>{p.title || "Untitled"}</strong>{" "}
+                <span style={{ color: "#6b7280", fontSize: 13 }}>
+                  #{p.id} · {p.puzzle_type} · {p.puzzle_date} · by {p.created_by || "unknown"}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span
+                  style={{
+                    padding: "3px 10px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    background: p.status === "published" ? "#d1fae5" : "#fef3c7",
+                    color: p.status === "published" ? "#065f46" : "#92400e",
+                  }}
+                >
+                  {p.status}
+                </span>
+                <button
+                  onClick={() => setViewId((id) => (id === p.id ? null : p.id))}
+                  style={{
+                    padding: "5px 14px",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                    background: "white",
+                    color: "#0f172a",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  {viewId === p.id ? "Hide" : "View"}
+                </button>
+                {p.status === "draft" && (
+                  <>
+                    <button
+                      onClick={() => handlePublish(p.id)}
+                      style={{
+                        padding: "5px 14px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: "#059669",
+                        color: "white",
+                        fontWeight: 600,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Publish
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p.id)}
+                      style={{
+                        padding: "5px 14px",
+                        borderRadius: 6,
+                        border: "1px solid #fca5a5",
+                        background: "white",
+                        color: "#dc2626",
+                        fontWeight: 600,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span
-                style={{
-                  padding: "3px 10px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: p.status === "published" ? "#d1fae5" : "#fef3c7",
-                  color: p.status === "published" ? "#065f46" : "#92400e",
-                }}
-              >
-                {p.status}
-              </span>
-              {p.status === "draft" && (
-                <>
-                  <button
-                    onClick={() => handlePublish(p.id)}
-                    style={{
-                      padding: "5px 14px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: "#059669",
-                      color: "white",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Publish
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    style={{
-                      padding: "5px 14px",
-                      borderRadius: 6,
-                      border: "1px solid #fca5a5",
-                      background: "white",
-                      color: "#dc2626",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-            </div>
+            {viewId === p.id && (
+              <div className="card" style={{ margin: 0, background: "#f8fafc" }}>
+                <PuzzleAdminPreview puzzle={p} />
+              </div>
+            )}
           </div>
         ))}
       </div>
