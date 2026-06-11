@@ -136,7 +136,7 @@ export default function BuilderGrid({
   }
 
   return (
-    <div style={{ display: "inline-flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
       <div className="muted" style={{ fontSize: 12 }}>
         Typing:{" "}
         <strong>{direction === "across" ? "Across →" : "Down ↓"}</strong>
