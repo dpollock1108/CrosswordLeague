@@ -79,7 +79,7 @@ def generate_clues(
     for attempt in range(max_retries):
         try:
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=settings.anthropic_model,
                 max_tokens=2048,
                 system=SYSTEM_PROMPT,
                 messages=[

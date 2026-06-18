@@ -55,6 +55,8 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 | `JWT_SECRET` | `dev-secret-change-me` | Secret for signing JWT tokens |
 | `JWT_EXPIRY_HOURS` | `168` (7 days) | JWT token lifetime |
 | `ANTHROPIC_API_KEY` | — | For AI puzzle generation and NYT screenshot parsing |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Model for clue generation |
+| `ANTHROPIC_VISION_MODEL` | `claude-sonnet-4-6` | Model for screenshot parsing (must be multimodal) |
 | `ALLOWED_ORIGINS` | `*` | CORS allowed origins (comma-separated) |
 | `DISABLE_ADMIN_AUTH` | `false` | Skip admin auth checks (dev only) |
 
