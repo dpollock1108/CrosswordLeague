@@ -13,6 +13,7 @@ interface CrosswordGridProps {
   direction: "across" | "down";
   selected: CellPosition | null;
   errorCells?: Set<string>; // "row,col" strings
+  active?: boolean; // when false, input is disabled (puzzle not started)
   clues: CluesData;
   onCellClick: (row: number, col: number) => void;
   onLetterInput: (row: number, col: number, letter: string) => void;
@@ -41,7 +42,7 @@ function computeCellNumbers(cells: GridCell[][], size: number): Map<string, numb
 }
 
 // Get cells belonging to the current word
-function getWordCells(
+export function getWordCells(
   cells: GridCell[][],
   size: number,
   row: number,
@@ -78,6 +79,7 @@ export default function CrosswordGrid({
   direction,
   selected,
   errorCells,
+  active = true,
   clues,
   onCellClick,
   onLetterInput,
@@ -100,7 +102,7 @@ export default function CrosswordGrid({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!selected) return;
+      if (!selected || !active) return;
 
       if (e.key === "Tab") {
         e.preventDefault();
@@ -134,7 +136,7 @@ export default function CrosswordGrid({
         onAdvance();
       }
     },
-    [selected, onNavigate, onDirectionToggle, onLetterInput, onAdvance, onRetreat, onTabClue],
+    [selected, active, onNavigate, onDirectionToggle, onLetterInput, onAdvance, onRetreat, onTabClue],
   );
 
   useEffect(() => {
@@ -145,12 +147,12 @@ export default function CrosswordGrid({
     }
   }, [handleKeyDown]);
 
-  // Focus the grid when selected changes
+  // Focus the grid when selected changes (only while playable)
   useEffect(() => {
-    if (selected && gridRef.current) {
+    if (active && selected && gridRef.current) {
       gridRef.current.focus();
     }
-  }, [selected]);
+  }, [selected, active]);
 
   const cellSize = size <= 5 ? 64 : 44;
   const fontSize = size <= 5 ? 24 : 18;
@@ -188,7 +190,7 @@ export default function CrosswordGrid({
           return (
             <div
               key={key}
-              onClick={() => !cell.is_black && onCellClick(r, c)}
+              onClick={() => active && !cell.is_black && onCellClick(r, c)}
               style={{
                 width: cellSize,
                 height: cellSize,
