@@ -176,3 +176,43 @@ def test_switching_to_public_auto_approves_pending(in_memory_session):
     assert league.visibility == "public"
     assert is_active_member(in_memory_session, league.id, bob.id)
     assert get_pending_requests(in_memory_session, league.id) == []
+
+
+def test_rename_and_remove_member_and_delete(in_memory_session):
+    from app.league_service import (
+        delete_league,
+        get_league_members,
+        remove_member,
+        rename_league,
+        set_scoring_config,
+    )
+    from app.models import League, LeagueMembership, LeagueScoringConfig
+    from sqlmodel import select
+
+    alice = _make_user(in_memory_session, "alice")
+    bob = _make_user(in_memory_session, "bob")
+    league = create_league(in_memory_session, "Old Name", alice, visibility="public")
+    join_league(in_memory_session, league.invite_code, bob)
+    set_scoring_config(in_memory_session, league.id,
+                       mini_tiers=[(None, 1)], mini_bonus=1,
+                       medium_tiers=[(None, 1)], medium_bonus=1)
+
+    # rename
+    rename_league(in_memory_session, league, "New Name")
+    assert in_memory_session.get(League, league.id).name == "New Name"
+
+    # remove bob
+    remove_member(in_memory_session, league.id, bob.id)
+    members = get_league_members(in_memory_session, league.id)
+    assert [m.user_id for m in members] == [alice.id]
+
+    # delete league cascades memberships + scoring config
+    lid = league.id
+    delete_league(in_memory_session, lid)
+    assert in_memory_session.get(League, lid) is None
+    assert in_memory_session.exec(
+        select(LeagueMembership).where(LeagueMembership.league_id == lid)
+    ).all() == []
+    assert in_memory_session.exec(
+        select(LeagueScoringConfig).where(LeagueScoringConfig.league_id == lid)
+    ).first() is None

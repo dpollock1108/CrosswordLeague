@@ -389,14 +389,41 @@ export async function fetchLeague(jwt: string, leagueId: number): Promise<League
 export async function fetchLeagueLeaderboard(
   jwt: string,
   leagueId: number,
-  params?: { startDate?: string; endDate?: string },
+  params?: { startDate?: string; endDate?: string; puzzleTypes?: string[] },
 ): Promise<LeaderboardResponse> {
   const search = new URLSearchParams();
   if (params?.startDate) search.append("start_date", params.startDate);
   if (params?.endDate) search.append("end_date", params.endDate);
+  for (const t of params?.puzzleTypes || []) search.append("puzzle_type", t);
   const qs = search.toString();
   return http<LeaderboardResponse>(`/leagues/${leagueId}/leaderboard${qs ? `?${qs}` : ""}`, {
     headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function renameLeague(jwt: string, leagueId: number, name: string): Promise<LeaguePublic> {
+  return http<LeaguePublic>(`/leagues/${leagueId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteLeague(jwt: string, leagueId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
+export async function removeLeagueMember(jwt: string, leagueId: number, userId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}/members/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
   });
 }
 

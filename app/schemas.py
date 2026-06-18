@@ -224,7 +224,8 @@ class LeagueCreate(BaseModel):
 
 
 class LeagueUpdate(BaseModel):
-    visibility: str = Field(pattern="^(public|private)$")
+    name: Optional[str] = Field(default=None, min_length=2, max_length=60)
+    visibility: Optional[str] = Field(default=None, pattern="^(public|private)$")
 
 
 class LeagueJoin(BaseModel):
