@@ -31,6 +31,12 @@ class Settings:
     disable_admin_auth: bool = field(default_factory=lambda: _parse_bool(os.getenv("DISABLE_ADMIN_AUTH"), default=False))
     allowed_origins: List[str] = field(default_factory=lambda: _parse_list(os.getenv("ALLOWED_ORIGINS")))
     anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", "").strip())
+    # Model for text generation (crossword clue writing).
+    anthropic_model: str = field(default_factory=lambda: os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6").strip())
+    # Model for vision (NYT leaderboard screenshot parsing); must be multimodal.
+    anthropic_vision_model: str = field(
+        default_factory=lambda: os.getenv("ANTHROPIC_VISION_MODEL", "claude-sonnet-4-6").strip()
+    )
     google_client_id: str = field(default_factory=lambda: os.getenv("GOOGLE_CLIENT_ID", "").strip())
     jwt_secret: str = field(default_factory=lambda: os.getenv("JWT_SECRET", "dev-secret-change-me").strip())
     jwt_algorithm: str = "HS256"

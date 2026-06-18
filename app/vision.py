@@ -23,7 +23,7 @@ def parse_leaderboard_image(image_bytes: bytes, media_type: str) -> List[dict]:
     image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
 
     response = client.messages.create(
-        model="claude-opus-4-6",
+        model=settings.anthropic_vision_model,
         max_tokens=1024,
         messages=[
             {
