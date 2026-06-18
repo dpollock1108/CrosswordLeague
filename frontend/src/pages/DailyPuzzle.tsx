@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchTodayPuzzle, saveProgress, startSolve, submitSolve } from "../api";
 import type { Clue, CluesData, GridCell, GridData, PuzzlePublic, SolveAttempt, SubmitResult } from "../types";
-import CrosswordGrid, { findClueForCell, type CellPosition } from "../components/CrosswordGrid";
+import CrosswordGrid, { findClueForCell, getWordCells, type CellPosition } from "../components/CrosswordGrid";
 import ClueList from "../components/ClueList";
 
 function formatTime(seconds: number): string {
@@ -12,6 +12,51 @@ function formatTime(seconds: number): string {
 }
 
 type PuzzleType = "mini_5x5" | "medium_10x10";
+
+// True when every non-black cell has a letter.
+function isGridFull(cells: GridCell[][], letters: string[][]): boolean {
+  return cells.every((row, r) => row.every((cell, c) => cell.is_black || (letters[r]?.[c] || "") !== ""));
+}
+
+function firstEmptyInClue(
+  letters: string[][], cells: GridCell[][], size: number, clue: Clue, dir: "across" | "down",
+): CellPosition | null {
+  for (const p of getWordCells(cells, size, clue.row, clue.col, dir)) {
+    if (!(letters[p.row]?.[p.col])) return p;
+  }
+  return null;
+}
+
+// Decide where to move after typing a letter: next empty cell in the current
+// word, else the first empty cell of the next unfilled clue (across then down,
+// wrapping). Returns null when the whole puzzle is filled.
+function nextSelection(
+  letters: string[][], cells: GridCell[][], clues: CluesData, size: number,
+  sel: CellPosition, dir: "across" | "down",
+): { pos: CellPosition; dir: "across" | "down" } | null {
+  const word = getWordCells(cells, size, sel.row, sel.col, dir);
+  const idx = word.findIndex((p) => p.row === sel.row && p.col === sel.col);
+  for (let i = idx + 1; i < word.length; i++) {
+    if (!(letters[word[i].row]?.[word[i].col])) return { pos: word[i], dir };
+  }
+  // No empty cell after the cursor in this word; if the word still has an empty
+  // cell earlier, go there; otherwise the word is complete -> next clue.
+  for (const p of word) {
+    if (!(letters[p.row]?.[p.col])) return { pos: p, dir };
+  }
+  const ordered = [
+    ...clues.across.map((c) => ({ c, dir: "across" as const })),
+    ...clues.down.map((c) => ({ c, dir: "down" as const })),
+  ];
+  const start = word[0];
+  const curIdx = ordered.findIndex((o) => o.dir === dir && o.c.row === start.row && o.c.col === start.col);
+  for (let k = 1; k <= ordered.length; k++) {
+    const o = ordered[((curIdx >= 0 ? curIdx : 0) + k) % ordered.length];
+    const empty = firstEmptyInClue(letters, cells, size, o.c, o.dir);
+    if (empty) return { pos: empty, dir: o.dir };
+  }
+  return null;
+}
 
 export default function DailyPuzzle() {
   const { user, token } = useAuth();
@@ -27,14 +72,20 @@ export default function DailyPuzzle() {
   const [userLetters, setUserLetters] = useState<string[][]>([]);
   const [selected, setSelected] = useState<CellPosition | null>(null);
   const [direction, setDirection] = useState<"across" | "down">("across");
-  const [errorCells, setErrorCells] = useState<Set<string>>(new Set());
 
   // Timer
   const [elapsed, setElapsed] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
+  const [incorrect, setIncorrect] = useState(false); // last auto-submit was wrong (no detail revealed)
+  const [starting, setStarting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Canonical, always-fresh copy of the letters for synchronous reads (advance).
+  const lettersRef = useRef<string[][]>([]);
+  const submittingRef = useRef(false);
+
+  const started = attempt != null;
   // Latest grid snapshot for the heartbeat, so it doesn't reset on each keystroke.
   const latestStateRef = useRef<{ gridData: GridData | null; userLetters: string[][] }>({
     gridData: null,
@@ -49,7 +100,7 @@ export default function DailyPuzzle() {
     setAttempt(null);
     setIsComplete(false);
     setSubmitResult(null);
-    setErrorCells(new Set());
+    setIncorrect(false);
 
     fetchTodayPuzzle(token || "", puzzleType)
       .then((resp) => {
@@ -62,12 +113,15 @@ export default function DailyPuzzle() {
         setCluesData(cd);
 
         // Initialize user letters from attempt or empty
+        let initial: string[][];
         if (resp.attempt?.grid_state) {
           const saved: GridData = JSON.parse(resp.attempt.grid_state);
-          setUserLetters(saved.cells.map((row) => row.map((cell) => cell.letter || "")));
+          initial = saved.cells.map((row) => row.map((cell) => cell.letter || ""));
         } else {
-          setUserLetters(gd.cells.map((row) => row.map(() => "")));
+          initial = gd.cells.map((row) => row.map(() => ""));
         }
+        setUserLetters(initial);
+        lettersRef.current = initial;
 
         if (resp.attempt?.is_complete) {
           setIsComplete(true);
@@ -89,16 +143,19 @@ export default function DailyPuzzle() {
       .finally(() => setLoading(false));
   }, [token, puzzleType]);
 
-  // Start solve attempt when user begins
-  const ensureAttempt = useCallback(async () => {
-    if (!token || !puzzle || attempt || isComplete) return;
+  // Explicit Play: start the attempt (and the server clock) on demand.
+  const handlePlay = useCallback(async () => {
+    if (!token || !puzzle || attempt || isComplete || starting) return;
+    setStarting(true);
     try {
       const a = await startSolve(token, puzzle.id);
       setAttempt(a);
-    } catch {
-      // ignore — already started
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setStarting(false);
     }
-  }, [token, puzzle, attempt, isComplete]);
+  }, [token, puzzle, attempt, isComplete, starting]);
 
   // Display timer: count only while the page is visible (matches the
   // server's active-time accrual, which pauses when the tab is closed).
@@ -125,7 +182,7 @@ export default function DailyPuzzle() {
   // while the page is open. Skipped when hidden so closed time doesn't count.
   // A fixed interval (independent of typing) guarantees regular accrual.
   useEffect(() => {
-    if (!token || !puzzle || isComplete) return;
+    if (!token || !puzzle || isComplete || !attempt) return;
     autoSaveRef.current = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       const { gridData: gd, userLetters: ul } = latestStateRef.current;
@@ -138,7 +195,7 @@ export default function DailyPuzzle() {
       saveProgress(token, puzzle.id, JSON.stringify(state)).catch(() => {});
     }, 2000);
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
-  }, [token, puzzle, isComplete]);
+  }, [token, puzzle, isComplete, attempt]);
 
   // Cell click handler
   const onCellClick = useCallback(
@@ -148,41 +205,35 @@ export default function DailyPuzzle() {
       } else {
         setSelected({ row, col });
       }
-      ensureAttempt();
     },
-    [selected, ensureAttempt],
+    [selected],
   );
 
-  // Letter input
+  // Letter input — keep lettersRef in sync synchronously so onAdvance (called
+  // right after) and the auto-submit effect see the latest grid.
   const onLetterInput = useCallback(
     (row: number, col: number, letter: string) => {
-      setUserLetters((prev) => {
-        const next = prev.map((r) => [...r]);
-        next[row][col] = letter;
-        return next;
-      });
-      setErrorCells(new Set()); // clear errors on input
-      ensureAttempt();
+      const base = lettersRef.current.length ? lettersRef.current : userLetters;
+      const next = base.map((r) => [...r]);
+      next[row][col] = letter;
+      lettersRef.current = next;
+      setUserLetters(next);
+      if (incorrect) setIncorrect(false); // clear stale "wrong" notice on edit
     },
-    [ensureAttempt],
+    [userLetters, incorrect],
   );
 
   const size = puzzle?.size ?? 5;
 
-  // Advance to next cell in current word
+  // Advance: next empty cell in the word, else first empty of the next clue.
   const onAdvance = useCallback(() => {
-    if (!selected || !gridData) return;
-    const { row, col } = selected;
-    if (direction === "across") {
-      for (let c = col + 1; c < size; c++) {
-        if (!gridData.cells[row][c].is_black) { setSelected({ row, col: c }); return; }
-      }
-    } else {
-      for (let r = row + 1; r < size; r++) {
-        if (!gridData.cells[r][col].is_black) { setSelected({ row: r, col }); return; }
-      }
+    if (!selected || !gridData || !cluesData) return;
+    const target = nextSelection(lettersRef.current, gridData.cells, cluesData, size, selected, direction);
+    if (target) {
+      if (target.dir !== direction) setDirection(target.dir);
+      setSelected(target.pos);
     }
-  }, [selected, direction, size, gridData]);
+  }, [selected, direction, size, gridData, cluesData]);
 
   // Retreat to previous cell
   const onRetreat = useCallback(() => {
@@ -256,27 +307,32 @@ export default function DailyPuzzle() {
     return clue ? { direction, number: clue.number } : null;
   }, [selected, direction, gridData, cluesData, size]);
 
-  // Submit handler
-  const handleSubmit = useCallback(async () => {
-    if (!token || !puzzle || !gridData) return;
+  // Auto-submit: whenever the grid is completely filled (and on every change
+  // while it stays full), submit for server validation — no Submit button.
+  useEffect(() => {
+    if (!token || !puzzle || !gridData || !attempt || isComplete) return;
+    if (!isGridFull(gridData.cells, userLetters)) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     const state: GridData = {
       cells: gridData.cells.map((row, r) =>
         row.map((cell, c) => ({ ...cell, letter: userLetters[r]?.[c] || "" })),
       ),
     };
-    try {
-      const result = await submitSolve(token, puzzle.id, JSON.stringify(state));
-      setSubmitResult(result);
-      if (result.correct) {
-        setIsComplete(true);
-        if (result.seconds != null) setElapsed(result.seconds);
-      } else if (result.errors) {
-        setErrorCells(new Set(result.errors.map((e) => `${e.row},${e.col}`)));
-      }
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }, [token, puzzle, gridData, userLetters]);
+    submitSolve(token, puzzle.id, JSON.stringify(state))
+      .then((result) => {
+        setSubmitResult(result);
+        if (result.correct) {
+          setIsComplete(true);
+          setIncorrect(false);
+          if (result.seconds != null) setElapsed(result.seconds);
+        } else {
+          setIncorrect(true); // notify, but never reveal which cells
+        }
+      })
+      .catch(() => {})
+      .finally(() => { submittingRef.current = false; });
+  }, [userLetters, attempt, isComplete, gridData, token, puzzle]);
 
   // Render
   if (!user) {
@@ -364,7 +420,7 @@ export default function DailyPuzzle() {
             userLetters={userLetters}
             direction={direction}
             selected={selected}
-            errorCells={errorCells.size > 0 ? errorCells : undefined}
+            active={started && !isComplete}
             clues={cluesData}
             onCellClick={onCellClick}
             onLetterInput={onLetterInput}
@@ -375,9 +431,10 @@ export default function DailyPuzzle() {
             onTabClue={onTabClue}
           />
 
-          {!isComplete && (
+          {!started && !isComplete && (
             <button
-              onClick={handleSubmit}
+              onClick={handlePlay}
+              disabled={starting}
               style={{
                 marginTop: 16,
                 width: "100%",
@@ -387,17 +444,23 @@ export default function DailyPuzzle() {
                 fontWeight: 700,
                 fontSize: 16,
                 cursor: "pointer",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                background: "linear-gradient(135deg, #059669, #10b981)",
                 color: "white",
               }}
             >
-              Submit
+              {starting ? "Starting…" : "▶ Play"}
             </button>
           )}
 
-          {submitResult && !submitResult.correct && (
-            <p style={{ color: "crimson", marginTop: 8, fontWeight: 600 }}>
-              {submitResult.errors?.length} incorrect cell{submitResult.errors?.length !== 1 ? "s" : ""} — keep trying!
+          {started && !isComplete && (
+            <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+              The puzzle submits automatically when every square is filled.
+            </p>
+          )}
+
+          {incorrect && !isComplete && (
+            <p style={{ color: "#b91c1c", marginTop: 8, fontWeight: 600 }}>
+              Not quite — something's still incorrect. Keep at it!
             </p>
           )}
         </div>
