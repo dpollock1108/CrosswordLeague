@@ -213,6 +213,10 @@ def _validate_template(template: list[list[int]], label: str = "") -> None:
 
 # All templates verified: every white run ≥ 3 letters, 180° rotational symmetry.
 
+# In a 5x5 with the "every word >= 3 letters" rule, black cells can only sit in
+# the corners (an interior black would split a 5-run into pieces < 3). These
+# templates use the legal corner/edge-corner patterns for visual variety. All
+# are 180°-symmetric and validated at import time.
 TEMPLATES_5x5 = [
     # Fully open (word square)
     _parse([
@@ -222,13 +226,53 @@ TEMPLATES_5x5 = [
         ".....",
         ".....",
     ]),
-    # Corner pair
+    # Single corner pair (NW + SE)
     _parse([
         "#....",
         ".....",
         ".....",
         ".....",
         "....#",
+    ]),
+    # Single corner pair (NE + SW)
+    _parse([
+        "....#",
+        ".....",
+        ".....",
+        ".....",
+        "#....",
+    ]),
+    # All four corners
+    _parse([
+        "#...#",
+        ".....",
+        ".....",
+        ".....",
+        "#...#",
+    ]),
+    # Horizontal corner blocks (two cells in NW + SE corners)
+    _parse([
+        "##...",
+        ".....",
+        ".....",
+        ".....",
+        "...##",
+    ]),
+    # Vertical corner blocks
+    _parse([
+        "#....",
+        "#....",
+        ".....",
+        "....#",
+        "....#",
+    ]),
+    # Corner L-blocks
+    _parse([
+        "##...",
+        "#....",
+        ".....",
+        "....#",
+        "...##",
     ]),
 ]
 
