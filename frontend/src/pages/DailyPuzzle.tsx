@@ -411,69 +411,79 @@ export default function DailyPuzzle() {
         </div>
       )}
 
-      {/* Grid + Clues layout */}
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div>
-          <CrosswordGrid
-            size={size}
-            cells={gridData.cells}
-            userLetters={userLetters}
-            direction={direction}
-            selected={selected}
-            active={started && !isComplete}
-            clues={cluesData}
-            onCellClick={onCellClick}
-            onLetterInput={onLetterInput}
-            onDirectionToggle={onDirectionToggle}
-            onNavigate={onNavigate}
-            onAdvance={onAdvance}
-            onRetreat={onRetreat}
-            onTabClue={onTabClue}
-          />
-
-          {!started && !isComplete && (
-            <button
-              onClick={handlePlay}
-              disabled={starting}
-              style={{
-                marginTop: 16,
-                width: "100%",
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "none",
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: "pointer",
-                background: "linear-gradient(135deg, #059669, #10b981)",
-                color: "white",
-              }}
-            >
-              {starting ? "Starting…" : "▶ Play"}
-            </button>
-          )}
-
-          {started && !isComplete && (
-            <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
-              The puzzle submits automatically when every square is filled.
+      {/* Start screen — the puzzle stays hidden until you press Play */}
+      {!started && !isComplete ? (
+        <div
+          className="card"
+          style={{ textAlign: "center", padding: 48, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}
+        >
+          <div>
+            <h3 style={{ margin: "0 0 4px" }}>Ready?</h3>
+            <p className="muted" style={{ margin: 0 }}>
+              The timer starts when you press Play. The puzzle submits itself the moment every square is filled.
             </p>
-          )}
-
-          {incorrect && !isComplete && (
-            <p style={{ color: "#b91c1c", marginTop: 8, fontWeight: 600 }}>
-              Not quite — something's still incorrect. Keep at it!
-            </p>
-          )}
+          </div>
+          <button
+            onClick={handlePlay}
+            disabled={starting}
+            style={{
+              padding: "14px 48px",
+              borderRadius: 12,
+              border: "none",
+              fontWeight: 700,
+              fontSize: 18,
+              cursor: "pointer",
+              background: "linear-gradient(135deg, #059669, #10b981)",
+              color: "white",
+            }}
+          >
+            {starting ? "Starting…" : "▶ Play"}
+          </button>
         </div>
+      ) : (
+        /* Grid + Clues layout */
+        <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div>
+            <CrosswordGrid
+              size={size}
+              cells={gridData.cells}
+              userLetters={userLetters}
+              direction={direction}
+              selected={selected}
+              active={started && !isComplete}
+              clues={cluesData}
+              onCellClick={onCellClick}
+              onLetterInput={onLetterInput}
+              onDirectionToggle={onDirectionToggle}
+              onNavigate={onNavigate}
+              onAdvance={onAdvance}
+              onRetreat={onRetreat}
+              onTabClue={onTabClue}
+            />
 
-        <div style={{ flex: "1 1 250px", minWidth: 200 }}>
-          <ClueList
-            across={cluesData.across}
-            down={cluesData.down}
-            activeClue={activeClue}
-            onClueClick={onClueClick}
-          />
+            {!isComplete && (
+              <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+                The puzzle submits automatically when every square is filled.
+              </p>
+            )}
+
+            {incorrect && !isComplete && (
+              <p style={{ color: "#b91c1c", marginTop: 8, fontWeight: 600 }}>
+                Not quite — something's still incorrect. Keep at it!
+              </p>
+            )}
+          </div>
+
+          <div style={{ flex: "1 1 250px", minWidth: 200 }}>
+            <ClueList
+              across={cluesData.across}
+              down={cluesData.down}
+              activeClue={activeClue}
+              onClueClick={onClueClick}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
