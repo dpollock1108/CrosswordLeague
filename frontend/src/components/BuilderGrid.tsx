@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface BuilderCell {
   letter: string;
@@ -25,16 +25,26 @@ export default function BuilderGrid({
   onNavigate,
 }: BuilderGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
+  const [direction, setDirection] = useState<"across" | "down">("across");
+  const toggleDirection = () => setDirection((d) => (d === "across" ? "down" : "across"));
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!selected) return;
       const { row, col } = selected;
 
-      if (e.key === "ArrowUp") { e.preventDefault(); onNavigate(-1, 0); return; }
-      if (e.key === "ArrowDown") { e.preventDefault(); onNavigate(1, 0); return; }
-      if (e.key === "ArrowLeft") { e.preventDefault(); onNavigate(0, -1); return; }
-      if (e.key === "ArrowRight") { e.preventDefault(); onNavigate(0, 1); return; }
+      // Arrow keys navigate and set the typing direction to match.
+      if (e.key === "ArrowUp") { e.preventDefault(); setDirection("down"); onNavigate(-1, 0); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); setDirection("down"); onNavigate(1, 0); return; }
+      if (e.key === "ArrowLeft") { e.preventDefault(); setDirection("across"); onNavigate(0, -1); return; }
+      if (e.key === "ArrowRight") { e.preventDefault(); setDirection("across"); onNavigate(0, 1); return; }
+
+      // Space or Tab toggles typing direction (across <-> down).
+      if (e.key === " " || e.key === "Tab") {
+        e.preventDefault();
+        toggleDirection();
+        return;
+      }
 
       // Period toggles black cell
       if (e.key === ".") {
@@ -43,11 +53,14 @@ export default function BuilderGrid({
         return;
       }
 
+      const stepRow = direction === "down" ? 1 : 0;
+      const stepCol = direction === "across" ? 1 : 0;
+
       if (e.key === "Backspace") {
         e.preventDefault();
         if (cells[row][col].is_black) return;
         onLetterInput(row, col, "");
-        onNavigate(0, -1);
+        onNavigate(-stepRow, -stepCol);
         return;
       }
 
@@ -62,10 +75,10 @@ export default function BuilderGrid({
         e.preventDefault();
         if (cells[row][col].is_black) return;
         onLetterInput(row, col, e.key.toUpperCase());
-        onNavigate(0, 1);
+        onNavigate(stepRow, stepCol);
       }
     },
-    [selected, cells, onNavigate, onToggleBlack, onLetterInput],
+    [selected, cells, onNavigate, onToggleBlack, onLetterInput, direction],
   );
 
   useEffect(() => {
@@ -103,41 +116,69 @@ export default function BuilderGrid({
     }
   }
 
+  // Cells of the current word (in the active typing direction) for highlighting.
+  const wordCells = new Set<string>();
+  if (selected && !cells[selected.row]?.[selected.col]?.is_black) {
+    const { row, col } = selected;
+    if (direction === "across") {
+      let c0 = col;
+      while (c0 > 0 && !cells[row][c0 - 1].is_black) c0--;
+      let c1 = col;
+      while (c1 < size - 1 && !cells[row][c1 + 1].is_black) c1++;
+      for (let c = c0; c <= c1; c++) wordCells.add(`${row},${c}`);
+    } else {
+      let r0 = row;
+      while (r0 > 0 && !cells[r0 - 1][col].is_black) r0--;
+      let r1 = row;
+      while (r1 < size - 1 && !cells[r1 + 1][col].is_black) r1++;
+      for (let r = r0; r <= r1; r++) wordCells.add(`${r},${col}`);
+    }
+  }
+
   return (
-    <div
-      ref={gridRef}
-      tabIndex={0}
-      style={{
-        display: "inline-grid",
-        gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-        gridTemplateRows: `repeat(${size}, ${cellSize}px)`,
-        gap: 1,
-        background: "#1f2937",
-        border: "2px solid #1f2937",
-        borderRadius: 4,
-        outline: "none",
-      }}
-    >
-      {cells.map((row, r) =>
-        row.map((cell, c) => {
-          const key = `${r},${c}`;
-          const isSelected = selected?.row === r && selected?.col === c;
-          const number = cellNumbers.get(key);
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+      <div className="muted" style={{ fontSize: 12 }}>
+        Typing:{" "}
+        <strong>{direction === "across" ? "Across →" : "Down ↓"}</strong>
+        {" — "}press Space/Tab or click the selected cell again to switch
+      </div>
+      <div
+        ref={gridRef}
+        tabIndex={0}
+        style={{
+          display: "inline-grid",
+          gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
+          gridTemplateRows: `repeat(${size}, ${cellSize}px)`,
+          gap: 1,
+          background: "#1f2937",
+          border: "2px solid #1f2937",
+          borderRadius: 4,
+          outline: "none",
+        }}
+      >
+        {cells.map((row, r) =>
+          row.map((cell, c) => {
+            const key = `${r},${c}`;
+            const isSelected = selected?.row === r && selected?.col === c;
+            const number = cellNumbers.get(key);
 
-          let bg = "white";
-          if (cell.is_black) bg = "#1f2937";
-          else if (isSelected) bg = "#93c5fd";
+            let bg = "white";
+            if (cell.is_black) bg = "#1f2937";
+            else if (isSelected) bg = "#93c5fd";
+            else if (wordCells.has(key)) bg = "#dbeafe";
 
-          return (
-            <div
-              key={key}
-              onClick={(e) => {
-                if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                  onToggleBlack(r, c);
-                } else {
-                  onCellClick(r, c);
-                }
-              }}
+            return (
+              <div
+                key={key}
+                onClick={(e) => {
+                  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                    onToggleBlack(r, c);
+                  } else if (isSelected && !cell.is_black) {
+                    toggleDirection();
+                  } else {
+                    onCellClick(r, c);
+                  }
+                }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 onToggleBlack(r, c);
@@ -176,8 +217,9 @@ export default function BuilderGrid({
               )}
             </div>
           );
-        }),
-      )}
+          }),
+        )}
+      </div>
     </div>
   );
 }
