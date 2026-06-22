@@ -159,6 +159,7 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 
 **Puzzles (requires auth):**
 - `GET /puzzles/today?type=mini_5x5` — Today's puzzle (answers stripped)
+- `GET /puzzles/archive?type=mini_5x5` — This week's playable puzzles (catch-up) + your all-time completed
 - `GET /puzzles/{id}` — Specific puzzle + solve attempt state
 - `POST /puzzles/{id}/start` — Start solve timer
 - `POST /puzzles/{id}/save` — Save progress (auto-save every 30s)

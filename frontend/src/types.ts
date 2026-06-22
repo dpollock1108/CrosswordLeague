@@ -196,6 +196,20 @@ export type PuzzleTodayResponse = {
   attempt?: SolveAttempt | null;
 };
 
+export type PuzzleArchiveEntry = {
+  id: number;
+  puzzle_type: string;
+  puzzle_date: string | null;
+  title?: string | null;
+  status: "not_started" | "in_progress" | "complete";
+  seconds?: number | null;
+};
+
+export type PuzzleArchiveResponse = {
+  week: PuzzleArchiveEntry[];
+  completed: PuzzleArchiveEntry[];
+};
+
 export type SubmitResult = {
   correct: boolean;
   seconds?: number | null;

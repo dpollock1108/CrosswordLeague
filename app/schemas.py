@@ -198,6 +198,20 @@ class PuzzleTodayResponse(BaseModel):
     attempt: Optional[SolveAttemptPublic] = None
 
 
+class PuzzleArchiveEntry(BaseModel):
+    id: int
+    puzzle_type: str
+    puzzle_date: Optional[date] = None
+    title: Optional[str] = None
+    status: str  # "not_started" | "in_progress" | "complete"
+    seconds: Optional[int] = None
+
+
+class PuzzleArchiveResponse(BaseModel):
+    week: List[PuzzleArchiveEntry]      # this week's playable puzzles (catch-up)
+    completed: List[PuzzleArchiveEntry]  # all-time completed (view-only)
+
+
 class HealthResponse(BaseModel):
     status: str
 

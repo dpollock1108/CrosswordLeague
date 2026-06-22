@@ -9,6 +9,7 @@ import type {
   Player,
   PlayerStats,
   PuzzleAdminPublic,
+  PuzzleArchiveResponse,
   PuzzleResultInput,
   PuzzleTodayResponse,
   ScreenshotParseResponse,
@@ -219,6 +220,12 @@ export async function fetchTodayPuzzle(jwt: string, type: string = "mini_5x5"): 
 export async function fetchPuzzle(jwt: string, puzzleId: number): Promise<PuzzleTodayResponse> {
   return http<PuzzleTodayResponse>(`/puzzles/${puzzleId}`, {
     headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
+  });
+}
+
+export async function fetchPuzzleArchive(jwt: string, type: string = "mini_5x5"): Promise<PuzzleArchiveResponse> {
+  return http<PuzzleArchiveResponse>(`/puzzles/archive?type=${encodeURIComponent(type)}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
   });
 }
 
