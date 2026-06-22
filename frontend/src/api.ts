@@ -267,7 +267,7 @@ export async function listPuzzlesAdmin(
 
 export async function generatePuzzleAdmin(
   jwt: string,
-  data: { puzzle_type: string; puzzle_date: string; difficulty: string },
+  data: { puzzle_type: string; difficulty: string },
 ): Promise<PuzzleAdminPublic> {
   return http<PuzzleAdminPublic>("/puzzles/generate", {
     method: "POST",
@@ -283,7 +283,6 @@ export async function createPuzzleAdmin(
   jwt: string,
   data: {
     puzzle_type: string;
-    puzzle_date: string;
     size: number;
     grid_data: string;
     clues_data: string;
@@ -301,11 +300,23 @@ export async function createPuzzleAdmin(
   });
 }
 
-export async function publishPuzzleAdmin(
+export async function assignPuzzleAdmin(
+  jwt: string,
+  puzzleId: number,
+  puzzleDate: string,
+): Promise<PuzzleAdminPublic> {
+  return http<PuzzleAdminPublic>(`/puzzles/${puzzleId}/assign`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ puzzle_date: puzzleDate }),
+  });
+}
+
+export async function unassignPuzzleAdmin(
   jwt: string,
   puzzleId: number,
 ): Promise<PuzzleAdminPublic> {
-  return http<PuzzleAdminPublic>(`/puzzles/${puzzleId}/publish`, {
+  return http<PuzzleAdminPublic>(`/puzzles/${puzzleId}/unassign`, {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}` },
   });

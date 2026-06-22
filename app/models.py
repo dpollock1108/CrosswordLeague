@@ -37,7 +37,10 @@ class Puzzle(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     puzzle_type: str = Field(index=True)  # "mini_5x5" or "medium_10x10"
-    puzzle_date: date = Field(index=True)
+    # Null = in the repository (unassigned). Set = scheduled live on that date.
+    # The (type, date) unique constraint still holds for non-null dates; SQL
+    # treats NULLs as distinct, so many unassigned puzzles can coexist.
+    puzzle_date: Optional[date] = Field(default=None, index=True)
     size: int = Field()  # 5 or 10
     grid_data: str = Field(sa_column=Column(Text, nullable=False))  # JSON: 2D cell array
     clues_data: str = Field(sa_column=Column(Text, nullable=False))  # JSON: across/down clues

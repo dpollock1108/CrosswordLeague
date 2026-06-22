@@ -123,7 +123,7 @@ frontend/src/
 
 - **Player** — name, handle, email, nyt_username. Represents a competitor on leaderboards.
 - **User** — google_id, email, display_name, handle, avatar_url, player_id (FK → Player). Represents an authenticated account.
-- **Puzzle** — puzzle_type (mini_5x5 / medium_10x10), puzzle_date, grid_data (JSON), clues_data (JSON), status (draft/published). One per type per day.
+- **Puzzle** — puzzle_type (mini_5x5 / medium_10x10), grid_data (JSON), clues_data (JSON), status. Lives in a repository with a **nullable** `puzzle_date`: null = unassigned, set = scheduled live on that date (unique per type/date).
 - **SolveAttempt** — user_id, puzzle_id, started_at, completed_at, seconds, grid_state (JSON for resume). One per user per puzzle.
 - **PuzzleResult** — player_id, puzzle_date, puzzle_type, seconds, source. Feeds into scoring. Unique on (player_id, puzzle_date, puzzle_type).
 
@@ -173,7 +173,8 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 - `POST /results/import-csv` — CSV import
 - `POST /puzzles` — Create puzzle manually
 - `POST /puzzles/generate` — Generate puzzle with AI
-- `POST /puzzles/{id}/publish` — Publish a draft puzzle
+- `POST /puzzles/{id}/assign` — Assign a repository puzzle to a date (goes live that day)
+- `POST /puzzles/{id}/unassign` — Return a puzzle to the repository (clears its date)
 
 ### Frontend Pages
 

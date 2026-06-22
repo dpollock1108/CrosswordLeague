@@ -171,7 +171,7 @@ export type GridData = {
 export type PuzzlePublic = {
   id: number;
   puzzle_type: string;
-  puzzle_date: string;
+  puzzle_date: string | null;
   size: number;
   grid_data: string; // JSON string
   clues_data: string; // JSON string
@@ -206,7 +206,7 @@ export type SubmitResult = {
 export type PuzzleAdminPublic = {
   id: number;
   puzzle_type: string;
-  puzzle_date: string;
+  puzzle_date: string | null;
   size: number;
   grid_data: string;
   clues_data: string;
