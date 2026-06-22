@@ -2,11 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import BuilderGrid, { detectWords, type BuilderCell, type DetectedWord } from "../components/BuilderGrid";
 import {
+  assignPuzzleAdmin,
   createPuzzleAdmin,
   deletePuzzleAdmin,
   generatePuzzleAdmin,
   listPuzzlesAdmin,
-  publishPuzzleAdmin,
+  unassignPuzzleAdmin,
 } from "../api";
 import type { PuzzleAdminPublic } from "../types";
 
@@ -31,7 +32,6 @@ function ManualBuilder({ token }: { token: string }) {
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
   const [clueTexts, setClueTexts] = useState<Record<string, string>>({});
   const [title, setTitle] = useState("");
-  const [puzzleDate, setPuzzleDate] = useState(todayStr());
   const [difficulty, setDifficulty] = useState("medium");
   const [symmetry, setSymmetry] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -163,14 +163,13 @@ function ManualBuilder({ token }: { token: string }) {
 
       const puzzle = await createPuzzleAdmin(token, {
         puzzle_type: puzzleType,
-        puzzle_date: puzzleDate,
         size,
         grid_data: gridData,
         clues_data: cluesData,
         title: title || undefined,
         difficulty,
       });
-      setStatus(`Puzzle #${puzzle.id} created as draft. Go to Manage to publish it.`);
+      setStatus(`Puzzle #${puzzle.id} saved to the repository. Assign it to a date in Manage Puzzles.`);
     } catch (e: any) {
       setError(e.message || "Failed to save");
     } finally {
@@ -191,15 +190,6 @@ function ManualBuilder({ token }: { token: string }) {
             <option value="mini_5x5">Mini (5×5)</option>
             <option value="medium_10x10">Medium (10×10)</option>
           </select>
-        </label>
-        <label style={{ fontSize: 14, fontWeight: 600 }}>
-          Date
-          <input
-            type="date"
-            value={puzzleDate}
-            onChange={(e) => setPuzzleDate(e.target.value)}
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
-          />
         </label>
         <label style={{ fontSize: 14, fontWeight: 600 }}>
           Difficulty
@@ -352,7 +342,6 @@ function ClueEditor({
 
 function AIGenerator({ token }: { token: string }) {
   const [puzzleType, setPuzzleType] = useState("mini_5x5");
-  const [puzzleDate, setPuzzleDate] = useState(todayStr());
   const [difficulty, setDifficulty] = useState("medium");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<PuzzleAdminPublic | null>(null);
@@ -365,7 +354,6 @@ function AIGenerator({ token }: { token: string }) {
     try {
       const puzzle = await generatePuzzleAdmin(token, {
         puzzle_type: puzzleType,
-        puzzle_date: puzzleDate,
         difficulty,
       });
       setResult(puzzle);
@@ -373,16 +361,6 @@ function AIGenerator({ token }: { token: string }) {
       setError(e.message || "Generation failed");
     } finally {
       setGenerating(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!result) return;
-    try {
-      await publishPuzzleAdmin(token, result.id);
-      setResult((prev) => prev ? { ...prev, status: "published" } : prev);
-    } catch (e: any) {
-      setError(e.message || "Publish failed");
     }
   };
 
@@ -400,7 +378,8 @@ function AIGenerator({ token }: { token: string }) {
   return (
     <div>
       <p style={{ color: "#6b7280", marginBottom: 16 }}>
-        Generate a crossword puzzle using AI. The puzzle is saved as a draft — review it before publishing.
+        Generate a crossword puzzle using AI. It's saved to the repository — review it, then assign it to a
+        date in Manage Puzzles.
       </p>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
@@ -416,15 +395,6 @@ function AIGenerator({ token }: { token: string }) {
           <span style={{ display: "block", marginTop: 4, fontSize: 12, fontWeight: 400, color: "#6b7280" }}>
             10×10 auto-generation isn't available yet — use the Manual Builder.
           </span>
-        </label>
-        <label style={{ fontSize: 14, fontWeight: 600 }}>
-          Date
-          <input
-            type="date"
-            value={puzzleDate}
-            onChange={(e) => setPuzzleDate(e.target.value)}
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
-          />
         </label>
         <label style={{ fontSize: 14, fontWeight: 600 }}>
           Difficulty
@@ -471,7 +441,7 @@ function AIGenerator({ token }: { token: string }) {
             <h3 style={{ margin: 0 }}>
               {result.title || "Untitled"}{" "}
               <span style={{ fontSize: 13, fontWeight: 400, color: "#6b7280" }}>
-                #{result.id} · {result.puzzle_type} · {result.puzzle_date}
+                #{result.id} · {result.puzzle_type} · {result.puzzle_date ?? "in repository"}
               </span>
             </h3>
             <span
@@ -480,11 +450,11 @@ function AIGenerator({ token }: { token: string }) {
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 700,
-                background: result.status === "published" ? "#d1fae5" : "#fef3c7",
-                color: result.status === "published" ? "#065f46" : "#92400e",
+                background: "#fef3c7",
+                color: "#92400e",
               }}
             >
-              {result.status}
+              in repository
             </span>
           </div>
 
@@ -498,24 +468,9 @@ function AIGenerator({ token }: { token: string }) {
             </div>
           )}
 
-          {result.status === "draft" && (
-            <button
-              onClick={handlePublish}
-              style={{
-                marginTop: 12,
-                padding: "8px 20px",
-                borderRadius: 8,
-                border: "none",
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: "pointer",
-                background: "#059669",
-                color: "white",
-              }}
-            >
-              Publish
-            </button>
-          )}
+          <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+            Saved to the repository. Head to <strong>Manage Puzzles</strong> to assign it to a date.
+          </p>
         </div>
       )}
     </div>
@@ -654,6 +609,7 @@ function ManagePuzzles({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "draft" | "published">("all");
   const [viewId, setViewId] = useState<number | null>(null);
+  const [assignDates, setAssignDates] = useState<Record<number, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -674,17 +630,29 @@ function ManagePuzzles({ token }: { token: string }) {
     if (token) load();
   }, [token, load]);
 
-  const handlePublish = async (id: number) => {
+  const handleAssign = async (id: number) => {
+    const date = assignDates[id] || todayStr();
+    setError(null);
     try {
-      await publishPuzzleAdmin(token, id);
+      await assignPuzzleAdmin(token, id, date);
       load();
     } catch (e: any) {
-      setError(e.message || "Publish failed");
+      setError(e.message || "Assign failed");
+    }
+  };
+
+  const handleUnassign = async (id: number) => {
+    setError(null);
+    try {
+      await unassignPuzzleAdmin(token, id);
+      load();
+    } catch (e: any) {
+      setError(e.message || "Unassign failed");
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this draft puzzle?")) return;
+    if (!confirm("Delete this puzzle? This can't be undone.")) return;
     try {
       await deletePuzzleAdmin(token, id);
       load();
@@ -697,7 +665,7 @@ function ManagePuzzles({ token }: { token: string }) {
     <div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
         <span style={{ fontSize: 14, fontWeight: 600 }}>Filter:</span>
-        {(["all", "draft", "published"] as const).map((f) => (
+        {([["all", "All"], ["draft", "Repository"], ["published", "Scheduled"]] as const).map(([f, label]) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -712,7 +680,7 @@ function ManagePuzzles({ token }: { token: string }) {
               cursor: "pointer",
             }}
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+            {label}
           </button>
         ))}
         <button
@@ -748,21 +716,21 @@ function ManagePuzzles({ token }: { token: string }) {
               <div>
                 <strong>{p.title || "Untitled"}</strong>{" "}
                 <span style={{ color: "#6b7280", fontSize: 13 }}>
-                  #{p.id} · {p.puzzle_type} · {p.puzzle_date} · by {p.created_by || "unknown"}
+                  #{p.id} · {p.puzzle_type} · {p.puzzle_date ? `scheduled ${p.puzzle_date}` : "unassigned"} · by {p.created_by || "unknown"}
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <span
                   style={{
                     padding: "3px 10px",
                     borderRadius: 6,
                     fontSize: 12,
                     fontWeight: 700,
-                    background: p.status === "published" ? "#d1fae5" : "#fef3c7",
-                    color: p.status === "published" ? "#065f46" : "#92400e",
+                    background: p.puzzle_date ? "#d1fae5" : "#fef3c7",
+                    color: p.puzzle_date ? "#065f46" : "#92400e",
                   }}
                 >
-                  {p.status}
+                  {p.puzzle_date ? "Scheduled" : "Repository"}
                 </span>
                 <button
                   onClick={() => setViewId((id) => (id === p.id ? null : p.id))}
@@ -779,39 +747,59 @@ function ManagePuzzles({ token }: { token: string }) {
                 >
                   {viewId === p.id ? "Hide" : "View"}
                 </button>
-                {p.status === "draft" && (
-                  <>
-                    <button
-                      onClick={() => handlePublish(p.id)}
-                      style={{
-                        padding: "5px 14px",
-                        borderRadius: 6,
-                        border: "none",
-                        background: "#059669",
-                        color: "white",
-                        fontWeight: 600,
-                        fontSize: 12,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Publish
-                    </button>
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      style={{
-                        padding: "5px 14px",
-                        borderRadius: 6,
-                        border: "1px solid #fca5a5",
-                        background: "white",
-                        color: "#dc2626",
-                        fontWeight: 600,
-                        fontSize: 12,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </>
+                <input
+                  type="date"
+                  value={assignDates[p.id] ?? (p.puzzle_date || todayStr())}
+                  onChange={(e) => setAssignDates((m) => ({ ...m, [p.id]: e.target.value }))}
+                  style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
+                />
+                <button
+                  onClick={() => handleAssign(p.id)}
+                  style={{
+                    padding: "5px 14px",
+                    borderRadius: 6,
+                    border: "none",
+                    background: "#059669",
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  {p.puzzle_date ? "Reassign" : "Assign"}
+                </button>
+                {p.puzzle_date ? (
+                  <button
+                    onClick={() => handleUnassign(p.id)}
+                    style={{
+                      padding: "5px 14px",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      background: "white",
+                      color: "#374151",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Unassign
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    style={{
+                      padding: "5px 14px",
+                      borderRadius: 6,
+                      border: "1px solid #fca5a5",
+                      background: "white",
+                      color: "#dc2626",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Delete
+                  </button>
                 )}
               </div>
             </div>

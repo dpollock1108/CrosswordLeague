@@ -13,6 +13,7 @@ from ..models import Puzzle, PuzzleResult, SolveAttempt, User
 from ..schemas import (
     GridSubmission,
     PuzzleAdminPublic,
+    PuzzleAssign,
     PuzzleCreate,
     PuzzleGenerateRequest,
     PuzzlePublic,
@@ -397,19 +398,55 @@ def generate_puzzle_endpoint(
     return PuzzleAdminPublic.model_validate(puzzle)
 
 
-@router.post("/{puzzle_id}/publish", response_model=PuzzleAdminPublic)
-def publish_puzzle(
+@router.post("/{puzzle_id}/assign", response_model=PuzzleAdminPublic)
+def assign_puzzle(
     puzzle_id: int,
+    body: PuzzleAssign,
     session: Session = Depends(get_session),
     _: None = Depends(require_admin_or_token),
 ) -> PuzzleAdminPublic:
-    """Publish a draft puzzle (admin)."""
+    """Assign a repository puzzle to a date — it goes live on that date (admin)."""
     puzzle = session.get(Puzzle, puzzle_id)
     if not puzzle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Puzzle not found.")
 
+    # One scheduled puzzle per (type, date).
+    clash = session.exec(
+        select(Puzzle).where(
+            Puzzle.puzzle_type == puzzle.puzzle_type,
+            Puzzle.puzzle_date == body.puzzle_date,
+            Puzzle.id != puzzle_id,
+        )
+    ).first()
+    if clash:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Another {puzzle.puzzle_type} puzzle (#{clash.id}) is already scheduled for {body.puzzle_date}.",
+        )
+
+    puzzle.puzzle_date = body.puzzle_date
     puzzle.status = "published"
     puzzle.published_at = datetime.utcnow()
+    session.add(puzzle)
+    session.commit()
+    session.refresh(puzzle)
+    return PuzzleAdminPublic.model_validate(puzzle)
+
+
+@router.post("/{puzzle_id}/unassign", response_model=PuzzleAdminPublic)
+def unassign_puzzle(
+    puzzle_id: int,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin_or_token),
+) -> PuzzleAdminPublic:
+    """Pull a puzzle back into the repository (clears its date) (admin)."""
+    puzzle = session.get(Puzzle, puzzle_id)
+    if not puzzle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Puzzle not found.")
+
+    puzzle.puzzle_date = None
+    puzzle.status = "draft"
+    puzzle.published_at = None
     session.add(puzzle)
     session.commit()
     session.refresh(puzzle)
@@ -429,7 +466,7 @@ def delete_puzzle(
     if puzzle.status == "published":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete a published puzzle. Unpublish it first.",
+            detail="Cannot delete a scheduled puzzle. Unassign it first.",
         )
     session.delete(puzzle)
     session.commit()

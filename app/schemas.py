@@ -120,7 +120,7 @@ class PuzzlePublic(BaseModel):
     """Puzzle data sent to clients — NO answers included."""
     id: int
     puzzle_type: str
-    puzzle_date: date
+    puzzle_date: Optional[date] = None
     size: int
     grid_data: str  # JSON with letters stripped — only black/white cell info
     clues_data: str  # JSON with answers stripped
@@ -136,7 +136,7 @@ class PuzzleAdminPublic(BaseModel):
     """Full puzzle data including answers — admin only."""
     id: int
     puzzle_type: str
-    puzzle_date: date
+    puzzle_date: Optional[date] = None
     size: int
     grid_data: str
     clues_data: str
@@ -152,7 +152,7 @@ class PuzzleAdminPublic(BaseModel):
 
 class PuzzleCreate(BaseModel):
     puzzle_type: str
-    puzzle_date: date
+    puzzle_date: Optional[date] = None  # null = create into the repository (unassigned)
     size: int
     grid_data: str
     clues_data: str
@@ -162,8 +162,12 @@ class PuzzleCreate(BaseModel):
 
 class PuzzleGenerateRequest(BaseModel):
     puzzle_type: str = "mini_5x5"
-    puzzle_date: date
+    puzzle_date: Optional[date] = None  # null = generate into the repository
     difficulty: str = "medium"
+
+
+class PuzzleAssign(BaseModel):
+    puzzle_date: date
 
 
 class SolveAttemptPublic(BaseModel):
