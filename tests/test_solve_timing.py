@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -69,7 +69,8 @@ def client_and_engine():
                   {"letter": "A", "is_black": False},
                   {"letter": "T", "is_black": False}]]
         puz = Puzzle(
-            puzzle_type="mini_5x5", puzzle_date=datetime(2025, 1, 1).date(), size=3,
+            # Today, so it's within the playable window (start/submit allowed).
+            puzzle_type="mini_5x5", puzzle_date=date.today(), size=3,
             grid_data=json.dumps({"cells": cells}),
             clues_data=json.dumps({"across": [], "down": []}),
             status="published",

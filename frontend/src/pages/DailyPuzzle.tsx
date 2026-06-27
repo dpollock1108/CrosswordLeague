@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { fetchTodayPuzzle, saveProgress, startSolve, submitSolve } from "../api";
-import type { Clue, CluesData, GridCell, GridData, PuzzlePublic, SolveAttempt, SubmitResult } from "../types";
+import { fetchPuzzle, fetchPuzzleArchive, fetchTodayPuzzle, saveProgress, startSolve, submitSolve } from "../api";
+import type {
+  Clue, CluesData, GridCell, GridData, PuzzleArchiveResponse, PuzzlePublic, SolveAttempt, SubmitResult,
+} from "../types";
 import CrosswordGrid, { findClueForCell, getWordCells, type CellPosition } from "../components/CrosswordGrid";
 import ClueList from "../components/ClueList";
 
@@ -61,6 +63,9 @@ function nextSelection(
 export default function DailyPuzzle() {
   const { user, token } = useAuth();
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("mini_5x5");
+  // null = today's puzzle; otherwise a specific puzzle id (catch-up / view).
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [archive, setArchive] = useState<PuzzleArchiveResponse | null>(null);
   const [puzzle, setPuzzle] = useState<PuzzlePublic | null>(null);
   const [attempt, setAttempt] = useState<SolveAttempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,7 +107,10 @@ export default function DailyPuzzle() {
     setSubmitResult(null);
     setIncorrect(false);
 
-    fetchTodayPuzzle(token || "", puzzleType)
+    const fetchP = selectedId != null
+      ? fetchPuzzle(token || "", selectedId)
+      : fetchTodayPuzzle(token || "", puzzleType);
+    fetchP
       .then((resp) => {
         setPuzzle(resp.puzzle);
         setAttempt(resp.attempt ?? null);
@@ -141,7 +149,17 @@ export default function DailyPuzzle() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  }, [token, puzzleType, selectedId]);
+
+  // Load the weekly catch-up list + the user's all-time completed history.
+  const loadArchive = useCallback(() => {
+    if (!token) return;
+    fetchPuzzleArchive(token, puzzleType).then(setArchive).catch(() => {});
   }, [token, puzzleType]);
+
+  useEffect(() => { loadArchive(); }, [loadArchive]);
+  // Refresh statuses after a puzzle is completed.
+  useEffect(() => { if (isComplete) loadArchive(); }, [isComplete, loadArchive]);
 
   // Explicit Play: start the attempt (and the server clock) on demand.
   const handlePlay = useCallback(async () => {
@@ -344,40 +362,94 @@ export default function DailyPuzzle() {
     );
   }
 
-  if (loading) return <p className="muted">Loading puzzle...</p>;
-  if (error) return <p style={{ color: "crimson" }}>{error}</p>;
+  const activeId = selectedId ?? puzzle?.id;
+
+  const typeTabs = (
+    <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      {(["mini_5x5", "medium_10x10"] as PuzzleType[]).map((t) => (
+        <button
+          key={t}
+          onClick={() => { setPuzzleType(t); setSelectedId(null); }}
+          style={{
+            padding: "8px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 14,
+            cursor: "pointer",
+            background: puzzleType === t ? "linear-gradient(135deg,#2563eb,#1d4ed8)" : "#f3f4f6",
+            color: puzzleType === t ? "white" : "#374151",
+          }}
+        >
+          {t === "mini_5x5" ? "Mini (5x5)" : "Medium (10x10)"}
+        </button>
+      ))}
+    </div>
+  );
+
+  const chipStyle = (isActive: boolean, done: boolean) => ({
+    padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+    color: "#0f172a",
+    border: isActive ? "2px solid #2563eb" : "1px solid #d1d5db",
+    background: done ? "#d1fae5" : "white",
+  } as const);
+
+  const archiveNav = archive ? (
+    <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div>
+        <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>This week</span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+          <button onClick={() => setSelectedId(null)} style={chipStyle(selectedId == null, false)}>Today</button>
+          {archive.week.length === 0 && (
+            <span className="muted" style={{ fontSize: 13, alignSelf: "center" }}>No puzzles yet this week.</span>
+          )}
+          {archive.week.map((e) => {
+            const icon = e.status === "complete" ? "✓ " : e.status === "in_progress" ? "… " : "";
+            return (
+              <button key={e.id} onClick={() => setSelectedId(e.id)} style={chipStyle(activeId === e.id, e.status === "complete")}>
+                {icon}{e.puzzle_date}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {archive.completed.length > 0 && (
+        <details>
+          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#374151" }}>
+            Your completed puzzles ({archive.completed.length})
+          </summary>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+            {archive.completed.map((e) => (
+              <button key={e.id} onClick={() => setSelectedId(e.id)} style={chipStyle(activeId === e.id, false)}>
+                {e.puzzle_date}{e.seconds != null ? ` · ${formatTime(e.seconds)}` : ""}
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  ) : null;
+
+  if (loading) return <div>{typeTabs}{archiveNav}<p className="muted">Loading puzzle...</p></div>;
+  if (error) return <div>{typeTabs}{archiveNav}<p style={{ color: "crimson" }}>{error}</p></div>;
   if (!puzzle || !gridData || !cluesData) {
     return (
-      <div className="card" style={{ textAlign: "center", padding: 40 }}>
-        <h2>No puzzle today</h2>
-        <p className="muted">Check back later — today's {puzzleType === "mini_5x5" ? "Mini" : "Medium"} puzzle hasn't been published yet.</p>
+      <div>
+        {typeTabs}
+        {archiveNav}
+        <div className="card" style={{ textAlign: "center", padding: 40 }}>
+          <h2>No puzzle here</h2>
+          <p className="muted">
+            {selectedId != null
+              ? "That puzzle isn't available."
+              : `Today's ${puzzleType === "mini_5x5" ? "Mini" : "Medium"} puzzle hasn't been published yet.`}
+            {" "}Pick one from this week above.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      {/* Puzzle type tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {(["mini_5x5", "medium_10x10"] as PuzzleType[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setPuzzleType(t)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 10,
-              border: "none",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: "pointer",
-              background: puzzleType === t ? "linear-gradient(135deg,#2563eb,#1d4ed8)" : "#f3f4f6",
-              color: puzzleType === t ? "white" : "#374151",
-            }}
-          >
-            {t === "mini_5x5" ? "Mini (5x5)" : "Medium (10x10)"}
-          </button>
-        ))}
-      </div>
+      {typeTabs}
+      {archiveNav}
 
       {/* Header with title and timer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
-from typing import Optional
+from datetime import date, datetime, timedelta
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
@@ -13,6 +13,8 @@ from ..models import Puzzle, PuzzleResult, SolveAttempt, User
 from ..schemas import (
     GridSubmission,
     PuzzleAdminPublic,
+    PuzzleArchiveEntry,
+    PuzzleArchiveResponse,
     PuzzleAssign,
     PuzzleCreate,
     PuzzleGenerateRequest,
@@ -22,6 +24,19 @@ from ..schemas import (
     SubmitResult,
 )
 from ..scoring import _time_points
+
+
+def _week_start(today: Optional[date] = None) -> date:
+    """Most recent Sunday on/before today (start of the Sun–Sat week)."""
+    today = today or date.today()
+    return today - timedelta(days=(today.weekday() + 1) % 7)
+
+
+def _is_playable(puzzle: Puzzle) -> bool:
+    """A puzzle can be played only if scheduled within the current week."""
+    if puzzle.puzzle_date is None:
+        return False
+    return _week_start() <= puzzle.puzzle_date <= date.today()
 
 router = APIRouter(prefix="/puzzles", tags=["puzzles"])
 
@@ -132,6 +147,63 @@ def get_today_puzzle(
     )
 
 
+@router.get("/archive", response_model=PuzzleArchiveResponse)
+def get_archive(
+    type: str = Query("mini_5x5", description="Puzzle type"),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> PuzzleArchiveResponse:
+    """Playable puzzles this week (catch-up) + the user's all-time completed puzzles."""
+    today = date.today()
+    week_start = _week_start(today)
+
+    def _attempt_for(puzzle_id: int) -> Optional[SolveAttempt]:
+        return session.exec(
+            select(SolveAttempt).where(
+                SolveAttempt.user_id == user.id,
+                SolveAttempt.puzzle_id == puzzle_id,
+            )
+        ).first()
+
+    def _entry(p: Puzzle, a: Optional[SolveAttempt]) -> PuzzleArchiveEntry:
+        status_str = "complete" if (a and a.is_complete) else ("in_progress" if a else "not_started")
+        return PuzzleArchiveEntry(
+            id=p.id,
+            puzzle_type=p.puzzle_type,
+            puzzle_date=p.puzzle_date,
+            title=p.title,
+            status=status_str,
+            seconds=a.seconds if a else None,
+        )
+
+    # This week's published puzzles (Sun..today), oldest first.
+    week_puzzles = session.exec(
+        select(Puzzle).where(
+            Puzzle.puzzle_type == type,
+            Puzzle.status == "published",
+            Puzzle.puzzle_date >= week_start,
+            Puzzle.puzzle_date <= today,
+        ).order_by(Puzzle.puzzle_date)  # type: ignore[union-attr]
+    ).all()
+    week = [_entry(p, _attempt_for(p.id)) for p in week_puzzles]
+
+    # All-time completed puzzles for this type (view-only history), newest first.
+    completed_attempts = session.exec(
+        select(SolveAttempt).where(
+            SolveAttempt.user_id == user.id,
+            SolveAttempt.is_complete == True,  # noqa: E712
+        )
+    ).all()
+    completed: List[PuzzleArchiveEntry] = []
+    for a in completed_attempts:
+        p = session.get(Puzzle, a.puzzle_id)
+        if p and p.puzzle_type == type and p.status == "published":
+            completed.append(_entry(p, a))
+    completed.sort(key=lambda e: e.puzzle_date or date.min, reverse=True)
+
+    return PuzzleArchiveResponse(week=week, completed=completed)
+
+
 @router.get("/{puzzle_id}", response_model=PuzzleTodayResponse)
 def get_puzzle(
     puzzle_id: int,
@@ -212,6 +284,13 @@ def start_solve(
             session.refresh(existing)
         return SolveAttemptPublic.model_validate(existing)
 
+    # New attempts are only allowed for puzzles within the current week.
+    if not _is_playable(puzzle):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This puzzle is outside the current week and can no longer be started.",
+        )
+
     attempt = SolveAttempt(
         user_id=user.id,
         puzzle_id=puzzle_id,
@@ -266,6 +345,11 @@ def submit_solve(
     puzzle = session.get(Puzzle, puzzle_id)
     if not puzzle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Puzzle not found.")
+    if not _is_playable(puzzle):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This puzzle is outside the current week and can no longer be submitted.",
+        )
 
     attempt = session.exec(
         select(SolveAttempt).where(
