@@ -25,9 +25,17 @@ function makeEmptyGrid(size: number): BuilderCell[][] {
 
 // ─── Manual Builder ─────────────────────────────────────────────────────────
 
+type BuilderType = "mini_5x5" | "medium_9x9" | "medium_10x10";
+
+const BUILDER_SIZES: Record<BuilderType, number> = {
+  mini_5x5: 5,
+  medium_9x9: 9,
+  medium_10x10: 10,
+};
+
 function ManualBuilder({ token }: { token: string }) {
-  const [puzzleType, setPuzzleType] = useState<"mini_5x5" | "medium_10x10">("mini_5x5");
-  const size = puzzleType === "mini_5x5" ? 5 : 10;
+  const [puzzleType, setPuzzleType] = useState<BuilderType>("mini_5x5");
+  const size = BUILDER_SIZES[puzzleType];
   const [cells, setCells] = useState<BuilderCell[][]>(() => makeEmptyGrid(5));
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
   const [clueTexts, setClueTexts] = useState<Record<string, string>>({});
@@ -39,10 +47,9 @@ function ManualBuilder({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
 
   // Reset grid when size changes
-  const handleTypeChange = (type: "mini_5x5" | "medium_10x10") => {
+  const handleTypeChange = (type: BuilderType) => {
     setPuzzleType(type);
-    const newSize = type === "mini_5x5" ? 5 : 10;
-    setCells(makeEmptyGrid(newSize));
+    setCells(makeEmptyGrid(BUILDER_SIZES[type]));
     setSelected(null);
     setClueTexts({});
   };
@@ -188,7 +195,8 @@ function ManualBuilder({ token }: { token: string }) {
             style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
           >
             <option value="mini_5x5">Mini (5×5)</option>
-            <option value="medium_10x10">Medium (10×10)</option>
+            <option value="medium_9x9">Medium (9×9)</option>
+            <option value="medium_10x10">Legacy (10×10)</option>
           </select>
         </label>
         <label style={{ fontSize: 14, fontWeight: 600 }}>
@@ -391,10 +399,8 @@ function AIGenerator({ token }: { token: string }) {
             style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
           >
             <option value="mini_5x5">Mini (5×5)</option>
+            <option value="medium_9x9">Medium (9×9)</option>
           </select>
-          <span style={{ display: "block", marginTop: 4, fontSize: 12, fontWeight: 400, color: "#6b7280" }}>
-            10×10 auto-generation isn't available yet — use the Manual Builder.
-          </span>
         </label>
         <label style={{ fontSize: 14, fontWeight: 600 }}>
           Difficulty

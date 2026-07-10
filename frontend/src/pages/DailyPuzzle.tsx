@@ -13,7 +13,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-type PuzzleType = "mini_5x5" | "medium_10x10";
+type PuzzleType = "mini_5x5" | "medium_9x9";
 
 // True when every non-black cell has a letter.
 function isGridFull(cells: GridCell[][], letters: string[][]): boolean {
@@ -366,7 +366,7 @@ export default function DailyPuzzle() {
 
   const typeTabs = (
     <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-      {(["mini_5x5", "medium_10x10"] as PuzzleType[]).map((t) => (
+      {(["mini_5x5", "medium_9x9"] as PuzzleType[]).map((t) => (
         <button
           key={t}
           onClick={() => { setPuzzleType(t); setSelectedId(null); }}
@@ -377,7 +377,7 @@ export default function DailyPuzzle() {
             color: puzzleType === t ? "white" : "#374151",
           }}
         >
-          {t === "mini_5x5" ? "Mini (5x5)" : "Medium (10x10)"}
+          {t === "mini_5x5" ? "Mini (5x5)" : "Medium (9x9)"}
         </button>
       ))}
     </div>

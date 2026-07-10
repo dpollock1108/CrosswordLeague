@@ -21,7 +21,7 @@ type PuzzleFilter = "all" | "mini" | "medium";
 const PUZZLE_TYPE_GROUPS: Record<PuzzleFilter, string[] | undefined> = {
   all: undefined,
   mini: ["nyt_mini", "mini_5x5"],
-  medium: ["medium_10x10"],
+  medium: ["medium_9x9", "medium_10x10"],
 };
 
 function formatSeconds(s?: number | null): string {

@@ -123,7 +123,7 @@ frontend/src/
 
 - **Player** — name, handle, email, nyt_username. Represents a competitor on leaderboards.
 - **User** — google_id, email, display_name, handle, avatar_url, player_id (FK → Player). Represents an authenticated account.
-- **Puzzle** — puzzle_type (mini_5x5 / medium_10x10), grid_data (JSON), clues_data (JSON), status. Lives in a repository with a **nullable** `puzzle_date`: null = unassigned, set = scheduled live on that date (unique per type/date).
+- **Puzzle** — puzzle_type (mini_5x5 / medium_9x9; legacy medium_10x10), grid_data (JSON), clues_data (JSON), status. Lives in a repository with a **nullable** `puzzle_date`: null = unassigned, set = scheduled live on that date (unique per type/date).
 - **SolveAttempt** — user_id, puzzle_id, started_at, completed_at, seconds, grid_state (JSON for resume). One per user per puzzle.
 - **PuzzleResult** — player_id, puzzle_date, puzzle_type, seconds, source. Feeds into scoring. Unique on (player_id, puzzle_date, puzzle_type).
 
@@ -194,7 +194,7 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 ### Crossword Solver
 
 The `/play` page features an interactive crossword grid:
-- **Mini (5×5)** and **Medium (10×10)** puzzle tabs
+- **Mini (5×5)** and **Medium (9×9)** puzzle tabs
 - Click to select cells, click again to toggle across/down
 - Type to fill, arrow keys to navigate, Tab to cycle clues
 - Current word highlighting + clue sidebar sync

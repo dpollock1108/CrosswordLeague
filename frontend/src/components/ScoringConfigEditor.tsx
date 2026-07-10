@@ -162,7 +162,7 @@ export default function ScoringConfigEditor({ leagueId, token }: { leagueId: num
       </p>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {renderCategory("mini", "Mini (5×5)")}
-        {renderCategory("medium", "Medium (10×10)")}
+        {renderCategory("medium", "Medium (9×9)")}
       </div>
       <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
         <button

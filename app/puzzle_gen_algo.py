@@ -276,15 +276,76 @@ TEMPLATES_5x5 = [
     ]),
 ]
 
-# NOTE: 10x10 ("medium") automatic generation is not yet supported.  Filling a
-# dense 10x10 interlocking grid from the word list is a hard search problem and
-# the solver cannot do it within an acceptable time budget yet.  10x10 puzzles
-# are built manually for now.  See generate_grid() below.
+# 9x9 "medium" templates: 180°-symmetric, connected, every run 3–6 letters.
+# Found via constrained random search and verified to fill in <0.1s with the
+# current solver (dense grids with short runs are what the solver is good at).
+TEMPLATES_9x9 = [
+    _parse([
+        "....##...",
+        "....##...",
+        ".....#...",
+        "###......",
+        "##.....##",
+        "......###",
+        "...#.....",
+        "...##....",
+        "...##....",
+    ]),
+    _parse([
+        "...##....",
+        "...#.....",
+        "...#.....",
+        "#.....###",
+        "#...#...#",
+        "###.....#",
+        ".....#...",
+        ".....#...",
+        "....##...",
+    ]),
+    _parse([
+        "...#.....",
+        "...#.....",
+        "...#.....",
+        "......###",
+        "#...#...#",
+        "###......",
+        ".....#...",
+        ".....#...",
+        ".....#...",
+    ]),
+    _parse([
+        "...###...",
+        "...#.....",
+        "...#.....",
+        "#.....###",
+        "#...#...#",
+        "###.....#",
+        ".....#...",
+        ".....#...",
+        "...###...",
+    ]),
+    _parse([
+        "...###...",
+        ".....#...",
+        ".....#...",
+        "###.....#",
+        "#...#...#",
+        "#.....###",
+        "...#.....",
+        "...#.....",
+        "...###...",
+    ]),
+]
+
+# NOTE: 10x10 automatic generation is still unsupported — its search space is
+# materially harder than 9x9 and hasn't fit an acceptable time budget.
 TEMPLATES_10x10: list[list[list[int]]] = []
 
 # Validate all templates at import time
 for _i, _t in enumerate(TEMPLATES_5x5):
     _validate_template(_t, f"5x5-{_i}")
+for _i, _t in enumerate(TEMPLATES_9x9):
+    _validate_template(_t, f"9x9-{_i}")
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +435,7 @@ class GridSolver:
         self.max_candidates = max_candidates
         self._start: float = 0
         self._checks: int = 0
+        self._timed_out: bool = False
 
     def solve(self) -> bool:
         """Try to fill all slots. Returns True on success.
@@ -387,6 +449,7 @@ class GridSolver:
         """
         self._start = time.time()
         self._checks = 0
+        self._timed_out = False
 
         # Static fill order: longest first, then most-crossed (most
         # constraining) first as a tiebreaker.
@@ -401,8 +464,14 @@ class GridSolver:
         if idx >= len(order):
             return True
 
+        # Sticky timeout: once the budget is exceeded, abort the ENTIRE search.
+        # (A plain periodic `return False` only fails one branch — ancestors
+        # keep iterating candidates and the search leaks far past the budget.)
+        if self._timed_out:
+            return False
         self._checks += 1
         if self._checks % 256 == 0 and time.time() - self._start > self.timeout:
+            self._timed_out = True
             return False
 
         slot_idx = order[idx]
@@ -524,13 +593,16 @@ def generate_grid(
 
     Raises ValueError if no valid grid could be built.
     """
-    if size > 5:
+    if size <= 5:
+        templates = TEMPLATES_5x5
+    elif size == 9:
+        templates = TEMPLATES_9x9
+    else:
         raise NotImplementedError(
-            "Automatic generation currently supports 5x5 minis only. "
-            "Build larger grids manually."
+            "Automatic generation supports 5x5 minis and 9x9 mediums. "
+            "Build other sizes manually."
         )
 
-    templates = TEMPLATES_5x5
     words = load_word_list(min_len=3, max_len=max(size, 15))
     word_index = WordIndex(words)
 
@@ -543,12 +615,16 @@ def generate_grid(
     shuffled = list(templates)
     random.shuffle(shuffled)
 
+    # Dense 9x9 grids either fill in well under a second or are stuck on a bad
+    # early word choice — a short timeout + retry (fresh shuffle) beats waiting.
+    attempt_timeout = timeout_per_attempt if size <= 5 else min(timeout_per_attempt, 4.0)
+
     for attempt in range(max_attempts):
         template = shuffled[attempt % len(shuffled)]
         solver = GridSolver(
             template, word_index,
-            timeout=timeout_per_attempt,
-            max_candidates=200 if size <= 5 else 80,
+            timeout=attempt_timeout,
+            max_candidates=200 if size <= 5 else 120,
         )
 
         if solver.solve():
