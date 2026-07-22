@@ -276,63 +276,71 @@ TEMPLATES_5x5 = [
     ]),
 ]
 
-# 9x9 "medium" templates: 180°-symmetric, connected, every run 3–6 letters.
-# Found via constrained random search and verified to fill in <0.1s with the
-# current solver (dense grids with short runs are what the solver is good at).
+# 9x9 "medium" templates: connected, every run 3–7 letters, and BOTH
+# 180°-rotationally AND mirror symmetric (full D2).  The mirror requirement is
+# deliberate: rotational-only symmetry can produce chiral pinwheel shapes that
+# read as swastikas; mirror-symmetric layouts structurally cannot.  These are
+# drawn from an exhaustive enumeration of the D2 space and each fills in well
+# under a second with the current solver.
 TEMPLATES_9x9 = [
+    # Open diamond (24 blacks)
     _parse([
-        "....##...",
-        "....##...",
-        ".....#...",
-        "###......",
+        "...###...",
+        "....#....",
+        "....#....",
         "##.....##",
-        "......###",
-        "...#.....",
-        "...##....",
-        "...##....",
-    ]),
-    _parse([
-        "...##....",
-        "...#.....",
-        "...#.....",
-        "#.....###",
-        "#...#...#",
-        "###.....#",
-        ".....#...",
-        ".....#...",
-        "....##...",
-    ]),
-    _parse([
-        "...#.....",
-        "...#.....",
-        "...#.....",
-        "......###",
-        "#...#...#",
-        "###......",
-        ".....#...",
-        ".....#...",
-        ".....#...",
-    ]),
-    _parse([
-        "...###...",
-        "...#.....",
-        "...#.....",
-        "#.....###",
-        "#...#...#",
-        "###.....#",
-        ".....#...",
-        ".....#...",
+        "###...###",
+        "##.....##",
+        "....#....",
+        "....#....",
         "...###...",
     ]),
+    # Diamond, doubled tips (28 blacks)
     _parse([
         "...###...",
-        ".....#...",
-        ".....#...",
-        "###.....#",
-        "#...#...#",
-        "#.....###",
-        "...#.....",
-        "...#.....",
+        "...###...",
+        "....#....",
+        "##.....##",
+        "###...###",
+        "##.....##",
+        "....#....",
+        "...###...",
+        "...###...",
+    ]),
+    # Corner blocks + open ring (25 blacks)
+    _parse([
+        "###...###",
+        "#.......#",
+        "#.......#",
+        "....#....",
+        "...###...",
+        "....#....",
+        "#.......#",
+        "#.......#",
+        "###...###",
+    ]),
+    # Corner blocks, stepped (29 blacks)
+    _parse([
+        "###...###",
+        "##.....##",
+        "#.......#",
+        "....#....",
+        "...###...",
+        "....#....",
+        "#.......#",
+        "##.....##",
+        "###...###",
+    ]),
+    # Chunky diamond (32 blacks)
+    _parse([
+        "...###...",
+        "...###...",
+        "...###...",
+        "##.....##",
+        "###...###",
+        "##.....##",
+        "...###...",
+        "...###...",
         "...###...",
     ]),
 ]
@@ -617,7 +625,7 @@ def generate_grid(
 
     # Dense 9x9 grids either fill in well under a second or are stuck on a bad
     # early word choice — a short timeout + retry (fresh shuffle) beats waiting.
-    attempt_timeout = timeout_per_attempt if size <= 5 else min(timeout_per_attempt, 4.0)
+    attempt_timeout = timeout_per_attempt if size <= 5 else min(timeout_per_attempt, 2.0)
 
     for attempt in range(max_attempts):
         template = shuffled[attempt % len(shuffled)]
