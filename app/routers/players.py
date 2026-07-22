@@ -4,7 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..auth import require_admin
+from ..auth import require_admin_or_token
 from ..database import get_session
 from ..schemas import PlayerCreate, PlayerPublic, PlayerStats
 from ..services import build_player_stats, create_player, list_players, update_player
@@ -21,7 +21,7 @@ def get_players(session=Depends(get_session)) -> List[PlayerPublic]:
 def post_player(
     payload: PlayerCreate,
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> PlayerPublic:
     player = create_player(session, payload)
     return PlayerPublic.model_validate(player)
@@ -32,7 +32,7 @@ def put_player(
     player_id: int,
     payload: PlayerCreate,
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> PlayerPublic:
     player = update_player(session, player_id, payload)
     if not player:
