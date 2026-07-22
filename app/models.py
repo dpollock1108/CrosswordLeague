@@ -36,7 +36,7 @@ class Puzzle(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("puzzle_type", "puzzle_date", name="uix_puzzle_type_date"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    puzzle_type: str = Field(index=True)  # "mini_5x5" or "medium_10x10"
+    puzzle_type: str = Field(index=True)  # "mini_5x5", "medium_9x9" (legacy: "medium_10x10")
     # Null = in the repository (unassigned). Set = scheduled live on that date.
     # The (type, date) unique constraint still holds for non-null dates; SQL
     # treats NULLs as distinct, so many unassigned puzzles can coexist.

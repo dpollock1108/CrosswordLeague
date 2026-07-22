@@ -453,16 +453,17 @@ def generate_puzzle_endpoint(
     from ..puzzle_gen import puzzle_to_json_strings
     from ..puzzle_gen_ai import generate_puzzle as ai_generate
 
-    if body.puzzle_type != "mini_5x5":
+    generatable_sizes = {"mini_5x5": 5, "medium_9x9": 9}
+    if body.puzzle_type not in generatable_sizes:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=(
-                "Automatic generation is currently available for 5x5 minis only. "
-                "Build a 10x10 manually in the Manual Builder for now."
+                "Automatic generation supports 5x5 minis and 9x9 mediums. "
+                "Build other sizes manually in the Manual Builder."
             ),
         )
 
-    size = 5
+    size = generatable_sizes[body.puzzle_type]
     data = ai_generate(size=size, difficulty=body.difficulty)
     grid_json, clues_json = puzzle_to_json_strings(data)
 
