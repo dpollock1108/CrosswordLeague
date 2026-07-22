@@ -17,7 +17,7 @@ from app.league_service import (
 )
 from app.models import User
 from app.schemas import BulkPuzzleResultCreate, PlayerCreate, PuzzleResultCreate
-from app.services import calculate_leaderboard, create_player, store_results
+from app.services import calculate_leaderboard, create_player, find_delinquent_players, store_results
 
 
 def _make_user(session, name, player_id=None):
@@ -216,3 +216,35 @@ def test_rename_and_remove_member_and_delete(in_memory_session):
     assert in_memory_session.exec(
         select(LeagueScoringConfig).where(LeagueScoringConfig.league_id == lid)
     ).first() is None
+
+
+def test_league_wall_of_shame_scopes_to_members(in_memory_session):
+    from app.league_service import create_league, join_league, league_member_player_ids
+
+    pa = create_player(in_memory_session, PlayerCreate(name="Alice"))
+    pb = create_player(in_memory_session, PlayerCreate(name="Bob"))
+    pc = create_player(in_memory_session, PlayerCreate(name="Carol"))
+
+    alice = _make_user(in_memory_session, "alice", player_id=pa.id)
+    bob = _make_user(in_memory_session, "bob", player_id=pb.id)
+    _make_user(in_memory_session, "carol", player_id=pc.id)  # not in the league
+
+    league = create_league(in_memory_session, "Friends", alice, visibility="public")
+    join_league(in_memory_session, league.invite_code, bob)
+
+    today = date.today()
+    # Alice solved today; Bob solved nothing; Carol (non-member) solved nothing.
+    store_results(
+        in_memory_session,
+        BulkPuzzleResultCreate(
+            overwrite_existing=True,
+            results=[PuzzleResultCreate(player_id=pa.id, puzzle_date=today, seconds=30)],
+        ),
+    )
+
+    member_ids = league_member_player_ids(in_memory_session, league.id)
+    wall = find_delinquent_players(
+        in_memory_session, scope="week", start_date=today, end_date=today, player_ids=member_ids
+    )
+    ids = {e.player_id for e in wall.entries}
+    assert ids == {pb.id}  # only Bob is missing; Carol is excluded entirely

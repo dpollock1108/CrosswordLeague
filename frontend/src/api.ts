@@ -419,6 +419,19 @@ export async function fetchLeagueLeaderboard(
   });
 }
 
+export async function fetchLeagueWallOfShame(
+  jwt: string,
+  leagueId: number,
+  params: { scope: "week" | "month"; startDate?: string; endDate?: string },
+): Promise<WallOfShameResponse> {
+  const search = new URLSearchParams({ scope: params.scope });
+  if (params.startDate) search.append("start_date", params.startDate);
+  if (params.endDate) search.append("end_date", params.endDate);
+  return http<WallOfShameResponse>(`/leagues/${leagueId}/wall-of-shame?${search.toString()}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
 export async function renameLeague(jwt: string, leagueId: number, name: string): Promise<LeaguePublic> {
   return http<LeaguePublic>(`/leagues/${leagueId}`, {
     method: "PATCH",
