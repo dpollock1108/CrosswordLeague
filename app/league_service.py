@@ -101,12 +101,44 @@ def join_league(session: Session, invite_code: str, user: User) -> Tuple[League,
     return league, status
 
 
+def _active_admin_count(session: Session, league_id: int) -> int:
+    return sum(1 for m in _active_memberships(session, league_id) if m.role == "admin")
+
+
 def leave_league(session: Session, league_id: int, user: User) -> None:
     """Leave a league or cancel a pending join request."""
     membership = get_membership(session, league_id, user.id)
     if not membership:
         raise LeagueError("You are not a member of this league.")
+    if membership.status == "active" and membership.role == "admin" and _active_admin_count(session, league_id) <= 1:
+        raise LeagueError(
+            "You're the only admin. Promote another member to admin before leaving."
+        )
     session.delete(membership)
+    session.commit()
+
+
+def promote_member(session: Session, league_id: int, user_id: int) -> None:
+    """Grant admin role to an active member."""
+    m = get_membership(session, league_id, user_id)
+    if not m or m.status != "active":
+        raise LeagueError("That user is not an active member of this league.")
+    if m.role == "admin":
+        return
+    m.role = "admin"
+    session.add(m)
+    session.commit()
+
+
+def demote_member(session: Session, league_id: int, user_id: int) -> None:
+    """Revoke admin role from an active admin. Blocks removing the last admin."""
+    m = get_membership(session, league_id, user_id)
+    if not m or m.status != "active" or m.role != "admin":
+        raise LeagueError("That user is not an active admin of this league.")
+    if _active_admin_count(session, league_id) <= 1:
+        raise LeagueError("A league must have at least one admin.")
+    m.role = "member"
+    session.add(m)
     session.commit()
 
 

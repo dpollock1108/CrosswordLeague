@@ -13,6 +13,7 @@ from ..league_service import (
     approve_request,
     create_league,
     delete_league,
+    demote_member,
     deny_request,
     get_league_members,
     get_membership,
@@ -24,6 +25,7 @@ from ..league_service import (
     league_member_player_ids,
     leave_league,
     list_user_leagues,
+    promote_member,
     remove_member,
     rename_league,
     set_scoring_config,
@@ -194,6 +196,36 @@ def remove_member_endpoint(
         )
     try:
         remove_member(session, league_id, user_id)
+    except LeagueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post("/{league_id}/members/{user_id}/promote", status_code=status.HTTP_204_NO_CONTENT)
+def promote_member_endpoint(
+    league_id: int,
+    user_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    _require_league(session, league_id)
+    _require_admin(session, league_id, user)
+    try:
+        promote_member(session, league_id, user_id)
+    except LeagueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post("/{league_id}/members/{user_id}/demote", status_code=status.HTTP_204_NO_CONTENT)
+def demote_member_endpoint(
+    league_id: int,
+    user_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> None:
+    _require_league(session, league_id)
+    _require_admin(session, league_id, user)
+    try:
+        demote_member(session, league_id, user_id)
     except LeagueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 

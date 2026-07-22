@@ -12,6 +12,7 @@ from app.league_service import (
     is_active_member,
     join_league,
     league_member_player_ids,
+    leave_league,
     list_user_leagues,
     set_visibility,
 )
@@ -248,3 +249,54 @@ def test_league_wall_of_shame_scopes_to_members(in_memory_session):
     )
     ids = {e.player_id for e in wall.entries}
     assert ids == {pb.id}  # only Bob is missing; Carol is excluded entirely
+
+
+def test_promote_and_demote_member(in_memory_session):
+    from app.league_service import demote_member, get_membership, promote_member
+
+    alice = _make_user(in_memory_session, "alice")
+    bob = _make_user(in_memory_session, "bob")
+    league = create_league(in_memory_session, "Test League", alice, visibility="public")
+    join_league(in_memory_session, league.invite_code, bob)
+
+    assert get_membership(in_memory_session, league.id, bob.id).role == "member"
+    promote_member(in_memory_session, league.id, bob.id)
+    assert get_membership(in_memory_session, league.id, bob.id).role == "admin"
+
+    # now two admins -> demoting bob back down is fine
+    demote_member(in_memory_session, league.id, bob.id)
+    assert get_membership(in_memory_session, league.id, bob.id).role == "member"
+
+
+def test_cannot_demote_the_last_admin(in_memory_session):
+    from app.league_service import demote_member
+
+    alice = _make_user(in_memory_session, "alice")
+    league = create_league(in_memory_session, "Solo Admin League", alice)
+
+    try:
+        demote_member(in_memory_session, league.id, alice.id)
+        assert False, "expected LeagueError"
+    except LeagueError:
+        pass
+
+
+def test_last_admin_cannot_leave(in_memory_session):
+    from app.league_service import get_membership, promote_member
+
+    alice = _make_user(in_memory_session, "alice")
+    bob = _make_user(in_memory_session, "bob")
+    league = create_league(in_memory_session, "Test League", alice, visibility="public")
+    join_league(in_memory_session, league.invite_code, bob)
+
+    # alice is the sole admin -> cannot leave
+    try:
+        leave_league(in_memory_session, league.id, alice)
+        assert False, "expected LeagueError"
+    except LeagueError:
+        pass
+
+    # promote bob, then alice can leave
+    promote_member(in_memory_session, league.id, bob.id)
+    leave_league(in_memory_session, league.id, alice)
+    assert get_membership(in_memory_session, league.id, alice.id) is None
