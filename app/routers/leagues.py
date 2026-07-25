@@ -42,8 +42,9 @@ from ..schemas import (
     LeagueScoringConfigUpdate,
     LeagueUpdate,
     ScoringTier,
+    WallOfShameResponse,
 )
-from ..services import calculate_leaderboard, default_date_window
+from ..services import calculate_leaderboard, default_date_window, find_delinquent_players
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
 
@@ -254,6 +255,28 @@ def league_leaderboard_endpoint(
         puzzle_types=puzzle_type,
         player_ids=member_ids,
         scoring_config=get_scoring_config(session, league_id),
+    )
+
+
+@router.get("/{league_id}/wall-of-shame", response_model=WallOfShameResponse)
+def league_wall_of_shame_endpoint(
+    league_id: int,
+    scope: str = Query("week", pattern="^(week|month)$"),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> WallOfShameResponse:
+    _require_league(session, league_id)
+    if not is_active_member(session, league_id, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be an active member to view this league.",
+        )
+
+    member_ids = league_member_player_ids(session, league_id)
+    return find_delinquent_players(
+        session, scope=scope, start_date=start_date, end_date=end_date, player_ids=member_ids
     )
 
 

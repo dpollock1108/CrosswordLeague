@@ -7,12 +7,15 @@ import {
   denyLeagueRequest,
   fetchLeague,
   fetchLeagueLeaderboard,
+  fetchLeagueWallOfShame,
   leaveLeague,
   removeLeagueMember,
   renameLeague,
   updateLeagueVisibility,
 } from "../api";
-import type { LeaderboardEntry, LeaderboardResponse, LeagueDetail as LeagueDetailType } from "../types";
+import type {
+  LeaderboardEntry, LeaderboardResponse, LeagueDetail as LeagueDetailType, WallOfShameResponse,
+} from "../types";
 import ScoringConfigEditor from "../components/ScoringConfigEditor";
 
 type Mode = "week" | "month";
@@ -267,6 +270,9 @@ export default function LeagueDetail() {
         )}
       </div>
 
+      {/* Wall of Shame */}
+      {token && <LeagueWallOfShame leagueId={league.id} token={token} />}
+
       {/* Members */}
       <div>
         <h3 style={{ marginBottom: 8 }}>Members ({league.members.length})</h3>
@@ -375,6 +381,59 @@ function Segmented({ options, value, onChange }: { options: [string, string][]; 
           {lbl}
         </button>
       ))}
+    </div>
+  );
+}
+
+function LeagueWallOfShame({ leagueId, token }: { leagueId: number; token: string }) {
+  const [scope, setScope] = useState<"week" | "month">("week");
+  const [wall, setWall] = useState<WallOfShameResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchLeagueWallOfShame(token, leagueId, { scope })
+      .then(setWall)
+      .catch(() => setWall(null))
+      .finally(() => setLoading(false));
+  }, [token, leagueId, scope]);
+
+  const maxMissing = Math.max(1, ...(wall?.entries.map((e) => e.missing_count) ?? [1]));
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <h3 style={{ margin: 0 }}>Wall of Shame</h3>
+        <Segmented options={[["week", "This week"], ["month", "This month"]]} value={scope} onChange={(v) => setScope(v as "week" | "month")} />
+      </div>
+      <p className="muted" style={{ marginTop: 4, fontSize: 13 }}>
+        League members who've missed a puzzle day{wall ? ` (${wall.start_date} → ${wall.end_date})` : ""}.
+      </p>
+
+      {loading ? (
+        <p className="muted">Loading…</p>
+      ) : !wall || wall.entries.length === 0 ? (
+        <p className="muted">Nobody's missed a day. 🎉</p>
+      ) : (
+        <div className="card wall-card" style={{ padding: 12 }}>
+          {wall.entries.map((e, i) => (
+            <div
+              key={e.player_id}
+              className={i === 0 ? "top-offender" : undefined}
+              style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 8 }}
+            >
+              <span
+                className="miss-bar"
+                style={{ width: `${(e.missing_count / maxMissing) * 100}%` }}
+              />
+              <span className="miss-count" style={{ fontWeight: 600 }}>{e.handle || e.name}</span>
+              <span className="miss-count shame-badge" style={{ padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
+                {e.missing_count} missed
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

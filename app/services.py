@@ -334,9 +334,17 @@ def find_delinquent_players(
     scope: str = "week",
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    player_ids: Optional[set[int]] = None,
 ) -> WallOfShameResponse:
     if scope not in {"week", "month"}:
         raise ValueError("scope must be 'week' or 'month'")
+
+    # An empty player_ids set means "scope to nobody" (e.g. a league with no
+    # members linked to a Player) — short-circuit rather than falling through
+    # to the global player list.
+    if player_ids is not None and not player_ids:
+        resolved = start_date or _default_range_for_scope(scope)[0]
+        return WallOfShameResponse(start_date=resolved, end_date=end_date or resolved, scope=scope, entries=[])
 
     resolved_start, resolved_end = (start_date, end_date) if start_date and end_date else _default_range_for_scope(scope)
     if start_date and not end_date:
@@ -351,18 +359,22 @@ def find_delinquent_players(
 
     calendar = set(_daterange(resolved_start, resolved_end))
 
-    results = session.exec(
-        select(PuzzleResult).where(
-            PuzzleResult.puzzle_date >= resolved_start,
-            PuzzleResult.puzzle_date <= resolved_end,
-        ),
-    ).all()
+    statement = select(PuzzleResult).where(
+        PuzzleResult.puzzle_date >= resolved_start,
+        PuzzleResult.puzzle_date <= resolved_end,
+    )
+    if player_ids is not None:
+        statement = statement.where(PuzzleResult.player_id.in_(player_ids))
+    results = session.exec(statement).all()
 
     results_by_player: Dict[int, set[date]] = defaultdict(set)
     for result in results:
         results_by_player[result.player_id].add(result.puzzle_date)
 
-    players = list_players(session)
+    if player_ids is not None:
+        players = [p for p in list_players(session) if p.id in player_ids]
+    else:
+        players = list_players(session)
     entries: List[DelinquentPlayer] = []
     for player in players:
         missing_dates = sorted(calendar - results_by_player.get(player.id, set()))
