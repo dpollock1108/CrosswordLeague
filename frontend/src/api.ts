@@ -458,6 +458,24 @@ export async function removeLeagueMember(jwt: string, leagueId: number, userId: 
   });
 }
 
+export async function promoteLeagueMember(jwt: string, leagueId: number, userId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}/members/${userId}/promote`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
+export async function demoteLeagueMember(jwt: string, leagueId: number, userId: number): Promise<void> {
+  await fetch(`${API_BASE}/leagues/${leagueId}/members/${userId}/demote`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  }).then((res) => {
+    if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
 export async function fetchLeagueScoringConfig(
   jwt: string,
   leagueId: number,

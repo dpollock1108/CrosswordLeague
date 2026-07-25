@@ -4,11 +4,13 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   approveLeagueRequest,
   deleteLeague,
+  demoteLeagueMember,
   denyLeagueRequest,
   fetchLeague,
   fetchLeagueLeaderboard,
   fetchLeagueWallOfShame,
   leaveLeague,
+  promoteLeagueMember,
   removeLeagueMember,
   renameLeague,
   updateLeagueVisibility,
@@ -143,6 +145,8 @@ export default function LeagueDetail() {
     if (!confirm(`Remove ${name} from the league?`)) return;
     guard(() => removeLeagueMember(token!, league!.id, userId));
   };
+  const handlePromote = (userId: number) => guard(() => promoteLeagueMember(token!, league!.id, userId));
+  const handleDemote = (userId: number) => guard(() => demoteLeagueMember(token!, league!.id, userId));
   const handleRename = () => {
     if (!renameValue.trim() || renameValue.trim() === league!.name) return;
     guard(() => renameLeague(token!, league!.id, renameValue.trim()));
@@ -167,6 +171,7 @@ export default function LeagueDetail() {
   if (!league) return null;
 
   const isAdmin = league.role === "admin";
+  const adminCount = league.members.filter((m) => m.role === "admin").length;
   const podium = board?.entries.slice(0, 3) ?? [];
 
   return (
@@ -277,25 +282,46 @@ export default function LeagueDetail() {
       <div>
         <h3 style={{ marginBottom: 8 }}>Members ({league.members.length})</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {league.members.map((m) => (
-            <div key={m.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-              <span>
-                {m.handle || m.display_name}
-                {m.player_id == null && <span className="muted" style={{ fontSize: 12 }}> · no results linked</span>}
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {m.role === "admin" && <span className="muted" style={{ fontSize: 13 }}>admin</span>}
-                {isAdmin && m.role !== "admin" && (
-                  <button
-                    onClick={() => handleRemove(m.user_id, m.handle || m.display_name)}
-                    style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#991b1b", fontSize: 12, cursor: "pointer" }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </span>
-            </div>
-          ))}
+          {league.members.map((m) => {
+            const soleAdmin = m.role === "admin" && adminCount <= 1;
+            return (
+              <div key={m.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+                <span>
+                  {m.handle || m.display_name}
+                  {m.player_id == null && <span className="muted" style={{ fontSize: 12 }}> · no results linked</span>}
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {m.role === "admin" && <span className="muted" style={{ fontSize: 13 }}>admin</span>}
+                  {isAdmin && m.role === "admin" && (
+                    <button
+                      onClick={() => handleDemote(m.user_id)}
+                      disabled={soleAdmin}
+                      title={soleAdmin ? "A league must have at least one admin" : undefined}
+                      style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: soleAdmin ? "#9ca3af" : "#0f172a", fontSize: 12, cursor: soleAdmin ? "not-allowed" : "pointer" }}
+                    >
+                      Demote
+                    </button>
+                  )}
+                  {isAdmin && m.role !== "admin" && (
+                    <>
+                      <button
+                        onClick={() => handlePromote(m.user_id)}
+                        style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#0f172a", fontSize: 12, cursor: "pointer" }}
+                      >
+                        Promote
+                      </button>
+                      <button
+                        onClick={() => handleRemove(m.user_id, m.handle || m.display_name)}
+                        style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#991b1b", fontSize: 12, cursor: "pointer" }}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
