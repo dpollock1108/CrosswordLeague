@@ -5,7 +5,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 
-from ..auth import require_admin
+from ..auth import require_admin_or_token
 from ..config import settings
 from ..database import get_session
 from ..schemas import (
@@ -31,7 +31,7 @@ router = APIRouter(tags=["results"])
 def post_results(
     payload: BulkPuzzleResultCreate,
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> List[PuzzleResultPublic]:
     results = store_results(session, payload)
     return [PuzzleResultPublic.model_validate(result) for result in results]
@@ -42,7 +42,7 @@ def post_results_csv(
     rows: List[dict],
     overwrite_existing: bool = Query(True, description="Overwrite existing results when true"),
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> CSVImportSummary:
     return import_results_from_rows(session, rows=rows, overwrite_existing=overwrite_existing)
 
@@ -51,7 +51,7 @@ def post_results_csv(
 def post_single_result(
     payload: PuzzleResultCreate,
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> PuzzleResultPublic:
     record = upsert_puzzle_result(session, payload, overwrite_existing=True)
     session.commit()
@@ -64,7 +64,7 @@ async def parse_screenshot(
     image: UploadFile = File(..., description="Leaderboard screenshot (JPEG or PNG)"),
     puzzle_date: date = Form(..., description="Puzzle date (YYYY-MM-DD)"),
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> ScreenshotParseResponse:
     if not settings.anthropic_api_key:
         raise HTTPException(
@@ -116,7 +116,7 @@ async def parse_screenshot(
 def get_results_for_date(
     puzzle_date: date = Query(..., description="Puzzle date (YYYY-MM-DD)"),
     session=Depends(get_session),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_or_token),
 ) -> List[PuzzleResultPublic]:
     records = list_results_by_date(session, puzzle_date)
     return [PuzzleResultPublic.model_validate(record) for record in records]

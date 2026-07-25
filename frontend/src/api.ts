@@ -94,16 +94,16 @@ export async function fetchWallOfShame(params: { scope: "week" | "month"; startD
   return http<WallOfShameResponse>(`/wall-of-shame?${search.toString()}`);
 }
 
-export async function fetchResultsByDate(token: string, puzzleDate: string) {
+export async function fetchResultsByDate(jwt: string, puzzleDate: string) {
   return http<PuzzleResultInput[]>("/results?" + new URLSearchParams({ puzzle_date: puzzleDate }).toString(), {
     headers: {
-      "X-Admin-Token": token,
+      Authorization: `Bearer ${jwt}`,
     },
   });
 }
 
 export async function submitResults(
-  token: string,
+  jwt: string,
   payload: PuzzleResultInput[],
   overwrite_existing = true,
 ) {
@@ -111,7 +111,7 @@ export async function submitResults(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": token,
+      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify({
       overwrite_existing,
@@ -120,19 +120,19 @@ export async function submitResults(
   });
 }
 
-export async function createPlayer(token: string, payload: { name: string; handle?: string; email?: string; nyt_username?: string }) {
+export async function createPlayer(jwt: string, payload: { name: string; handle?: string; email?: string; nyt_username?: string }) {
   return http<Player>("/players", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": token,
+      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify(payload),
   });
 }
 
 export async function updatePlayer(
-  token: string,
+  jwt: string,
   playerId: number,
   payload: { name: string; handle?: string; email?: string; nyt_username?: string },
 ) {
@@ -140,14 +140,14 @@ export async function updatePlayer(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": token,
+      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify(payload),
   });
 }
 
 export async function submitSingleResult(
-  token: string,
+  jwt: string,
   payload: {
     player_id: number;
     puzzle_date: string;
@@ -161,14 +161,14 @@ export async function submitSingleResult(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": token,
+      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify(payload),
   });
 }
 
 export async function parseScreenshot(
-  token: string,
+  jwt: string,
   image: File,
   puzzleDate: string,
 ): Promise<ScreenshotParseResponse> {
@@ -178,7 +178,7 @@ export async function parseScreenshot(
 
   const res = await fetch(`${API_BASE}/results/parse-screenshot`, {
     method: "POST",
-    headers: { "X-Admin-Token": token },
+    headers: { Authorization: `Bearer ${jwt}` },
     body: formData,
   });
   if (!res.ok) {
@@ -189,7 +189,7 @@ export async function parseScreenshot(
 }
 
 export async function importResultsCsv(
-  token: string,
+  jwt: string,
   rows: Array<{
     player_id: number;
     puzzle_date: string;
@@ -204,7 +204,7 @@ export async function importResultsCsv(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": token,
+      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify(rows),
   });

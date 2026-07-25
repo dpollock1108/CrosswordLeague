@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import {
   createPlayer,
   fetchPlayers,
@@ -12,7 +13,7 @@ import {
 import type { Player, PuzzleResultInput, ScreenshotParseResponse } from "../types";
 
 export default function NytTracker() {
-  const [token, setToken] = useState("");
+  const { token } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [playersError, setPlayersError] = useState<string | null>(null);
   const [payloadText, setPayloadText] = useState("");
@@ -62,7 +63,7 @@ export default function NytTracker() {
   useEffect(() => {
     if (!token || !players.length || !gridDate) return;
     setGridLoadError(null);
-    fetchResultsByDate(token, gridDate)
+    fetchResultsByDate(token!, gridDate)
       .then((results) => {
         const base = players.reduce((acc, p) => {
           acc[p.id] = "";
@@ -82,7 +83,7 @@ export default function NytTracker() {
     setErrorBulk(null);
     try {
       const parsed = parsePayload(payloadText);
-      await submitResults(token, parsed);
+      await submitResults(token!, parsed);
       setStatusBulk(`Uploaded ${parsed.length} rows`);
       setPayloadText("");
     } catch (err) {
@@ -96,7 +97,7 @@ export default function NytTracker() {
     setCreatePlayerError(null);
     try {
       if (editingPlayer) {
-        const player = await updatePlayer(token, editingPlayer.id, {
+        const player = await updatePlayer(token!, editingPlayer.id, {
           name: playerForm.name.trim(),
           handle: playerForm.handle.trim() || undefined,
           email: playerForm.email.trim() || undefined,
@@ -105,7 +106,7 @@ export default function NytTracker() {
         setCreatePlayerStatus(`Updated player ${player.name}`);
         setEditingPlayer(null);
       } else {
-        const player = await createPlayer(token, {
+        const player = await createPlayer(token!, {
           name: playerForm.name.trim(),
           handle: playerForm.handle.trim() || undefined,
           email: playerForm.email.trim() || undefined,
@@ -126,7 +127,7 @@ export default function NytTracker() {
     setResultStatus(null);
     setResultError(null);
     try {
-      await submitSingleResult(token, {
+      await submitSingleResult(token!, {
         player_id: Number(resultForm.player_id),
         puzzle_date: resultForm.puzzle_date,
         seconds: Number(resultForm.seconds),
@@ -156,7 +157,7 @@ export default function NytTracker() {
     }
     try {
       for (const entry of entries) {
-        await submitSingleResult(token, entry);
+        await submitSingleResult(token!, entry);
       }
       setResultStatus(`Saved ${entries.length} result(s) for ${gridDate}`);
       setGridTimes((prev) =>
@@ -173,7 +174,7 @@ export default function NytTracker() {
     setCsvError(null);
     try {
       const rows = parseCsv(csvText);
-      const summary = await importResultsCsv(token, rows, true);
+      const summary = await importResultsCsv(token!, rows, true);
       setCsvStatus(`Imported ${summary.imported} row(s); skipped ${summary.skipped}`);
       if (summary.errors && summary.errors.length) {
         setCsvError(summary.errors.join("; "));
@@ -192,7 +193,7 @@ export default function NytTracker() {
     setScreenshotStatus(null);
     setScreenshotError(null);
     try {
-      const result = await parseScreenshot(token, screenshotFile, screenshotDate);
+      const result = await parseScreenshot(token!, screenshotFile, screenshotDate);
       setParseResult(result);
     } catch (err) {
       setScreenshotError((err as Error).message);
@@ -215,7 +216,7 @@ export default function NytTracker() {
           seconds: e.seconds,
           source: "screenshot",
         }));
-      await submitResults(token, entries, true);
+      await submitResults(token!, entries, true);
       setScreenshotStatus(`Imported ${entries.length} result(s) for ${parseResult.puzzle_date}`);
       setParseResult(null);
       setScreenshotFile(null);
@@ -234,19 +235,9 @@ export default function NytTracker() {
           <h2>NYT Mini Tracker</h2>
           <p className="muted">Legacy tools for importing NYT Mini results (screenshot, CSV, manual entry).</p>
         </div>
-        <span className="badge">Requires admin token</span>
+        <span className="badge">Admin only</span>
       </div>
       <form onSubmit={handleSubmit}>
-        <label>
-          Admin token
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="X-Admin-Token value"
-            required
-          />
-        </label>
         <label>
           Results (JSON array)
           <textarea

@@ -13,26 +13,6 @@ from .models import User
 
 
 # ---------------------------------------------------------------------------
-# Admin token auth (legacy, kept for backward compat)
-# ---------------------------------------------------------------------------
-
-
-def require_admin(x_admin_token: Optional[str] = Header(None)) -> None:
-    if settings.disable_admin_auth:
-        return
-    if not settings.admin_token_configured:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Set ADMIN_TOKEN before performing admin actions.",
-        )
-    if x_admin_token != settings.admin_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token.",
-        )
-
-
-# ---------------------------------------------------------------------------
 # Google ID-token verification
 # ---------------------------------------------------------------------------
 
