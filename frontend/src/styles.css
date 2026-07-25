@@ -68,11 +68,18 @@
   --radius: 12px;
   --radius-sm: 8px;
   --shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --page-background: radial-gradient(circle at 15% 20%, rgb(var(--primary-rgb) / 8%), #ffffff 40%),
-    linear-gradient(135deg, rgb(var(--accent-rgb) / 7%) 0%, #ffffff 40%);
+  /* Brand-tinted wash. The stops are translucent so they follow the palette,
+   * so an opaque --page-base must sit underneath — without it the tinted
+   * corner is see-through and picks up whatever is behind the document. */
+  --page-base: #ffffff;
+  /* Fades use the same hue at 0% alpha rather than `transparent`
+   * (= transparent BLACK), so there is no chance of a muddy fade. */
+  --page-background: radial-gradient(circle at 15% 20%, rgb(var(--primary-rgb) / 8%), rgb(var(--primary-rgb) / 0%) 40%),
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 7%) 0%, rgb(var(--accent-rgb) / 0%) 40%);
 
   font-family: "Space Grotesk", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: var(--page-background);
+  background-color: var(--page-base);
+  background-image: var(--page-background);
   color: var(--text);
   line-height: 1.5;
   min-height: 100%;
