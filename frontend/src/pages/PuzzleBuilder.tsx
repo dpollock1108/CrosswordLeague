@@ -192,7 +192,7 @@ function ManualBuilder({ token }: { token: string }) {
           <select
             value={puzzleType}
             onChange={(e) => handleTypeChange(e.target.value as any)}
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
+            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)" }}
           >
             <option value="mini_5x5">Mini (5×5)</option>
             <option value="medium_9x9">Medium (9×9)</option>
@@ -204,7 +204,7 @@ function ManualBuilder({ token }: { token: string }) {
           <select
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value)}
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
+            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)" }}
           >
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
@@ -218,7 +218,7 @@ function ManualBuilder({ token }: { token: string }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Puzzle title"
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", width: 200 }}
+            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", width: 200 }}
           />
         </label>
       </div>
@@ -233,12 +233,12 @@ function ManualBuilder({ token }: { token: string }) {
           />
           Rotational symmetry
         </label>
-        <span style={{ fontSize: 13, color: "#9ca3af" }}>
+        <span style={{ fontSize: 13, color: "var(--text-disabled)" }}>
           (black cells auto-mirror 180°)
         </span>
       </div>
 
-      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
+      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>
         Type letters into cells. <strong>Right-click</strong> or <strong>Shift+click</strong> to toggle black cells.
         Press <strong>.</strong> (period) to toggle the selected cell.
       </p>
@@ -271,15 +271,15 @@ function ManualBuilder({ token }: { token: string }) {
             fontWeight: 700,
             fontSize: 14,
             cursor: saving ? "default" : "pointer",
-            background: saving ? "#9ca3af" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
-            color: "white",
+            background: saving ? "var(--surface-disabled)" : "var(--brand-gradient)",
+            color: "var(--text-on-brand)",
           }}
         >
           {saving ? "Saving..." : "Save as Draft"}
         </button>
       </div>
 
-      {status && <p style={{ color: "#059669", fontWeight: 600, marginTop: 8 }}>{status}</p>}
+      {status && <p style={{ color: "var(--success)", fontWeight: 600, marginTop: 8 }}>{status}</p>}
       {error && <p style={{ color: "crimson", fontWeight: 600, marginTop: 8 }}>{error}</p>}
     </div>
   );
@@ -302,7 +302,7 @@ function ClueEditor({
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#374151" }}>{label}</h4>
+      <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)" }}>{label}</h4>
       {words.map((w) => (
         <div key={w.number} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
           <span
@@ -310,7 +310,7 @@ function ClueEditor({
               minWidth: 28,
               fontWeight: 700,
               fontSize: 13,
-              color: "#6b7280",
+              color: "var(--text-muted)",
               textAlign: "right",
             }}
           >
@@ -321,7 +321,7 @@ function ClueEditor({
               minWidth: 60,
               fontFamily: "monospace",
               fontSize: 13,
-              color: w.letters.includes("?") ? "#ef4444" : "#059669",
+              color: w.letters.includes("?") ? "#ef4444" : "var(--success)",
               fontWeight: 600,
             }}
           >
@@ -336,7 +336,7 @@ function ClueEditor({
               flex: 1,
               padding: "5px 10px",
               borderRadius: 6,
-              border: "1px solid #d1d5db",
+              border: "1px solid var(--border)",
               fontSize: 13,
             }}
           />
@@ -385,7 +385,7 @@ function AIGenerator({ token }: { token: string }) {
 
   return (
     <div>
-      <p style={{ color: "#6b7280", marginBottom: 16 }}>
+      <p style={{ color: "var(--text-muted)", marginBottom: 16 }}>
         Generate a crossword puzzle using AI. It's saved to the repository — review it, then assign it to a
         date in Manage Puzzles.
       </p>
@@ -396,7 +396,7 @@ function AIGenerator({ token }: { token: string }) {
           <select
             value={puzzleType}
             onChange={(e) => setPuzzleType(e.target.value)}
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
+            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)" }}
           >
             <option value="mini_5x5">Mini (5×5)</option>
             <option value="medium_9x9">Medium (9×9)</option>
@@ -407,7 +407,7 @@ function AIGenerator({ token }: { token: string }) {
           <select
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value)}
-            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
+            style={{ display: "block", marginTop: 4, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)" }}
           >
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
@@ -424,8 +424,8 @@ function AIGenerator({ token }: { token: string }) {
             fontWeight: 700,
             fontSize: 14,
             cursor: generating ? "default" : "pointer",
-            background: generating ? "#9ca3af" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
-            color: "white",
+            background: generating ? "var(--surface-disabled)" : "var(--brand-gradient)",
+            color: "var(--text-on-brand)",
             height: "fit-content",
           }}
         >
@@ -434,7 +434,7 @@ function AIGenerator({ token }: { token: string }) {
       </div>
 
       {generating && (
-        <p style={{ color: "#6b7280", fontStyle: "italic" }}>
+        <p style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
           AI is building the crossword — this can take 10–30 seconds...
         </p>
       )}
@@ -446,7 +446,7 @@ function AIGenerator({ token }: { token: string }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
             <h3 style={{ margin: 0 }}>
               {result.title || "Untitled"}{" "}
-              <span style={{ fontSize: 13, fontWeight: 400, color: "#6b7280" }}>
+              <span style={{ fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>
                 #{result.id} · {result.puzzle_type} · {result.puzzle_date ?? "in repository"}
               </span>
             </h3>
@@ -456,8 +456,8 @@ function AIGenerator({ token }: { token: string }) {
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 700,
-                background: "#fef3c7",
-                color: "#92400e",
+                background: "var(--warning-surface)",
+                color: "var(--warning-text)",
               }}
             >
               in repository
@@ -526,7 +526,7 @@ function PuzzlePreview({
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
           gridTemplateRows: `repeat(${size}, ${cellSize}px)`,
           gap: 1,
-          background: "#1f2937",
+          background: "var(--surface-inverse)",
           border: "2px solid #1f2937",
           borderRadius: 4,
         }}
@@ -541,7 +541,7 @@ function PuzzlePreview({
                 style={{
                   width: cellSize,
                   height: cellSize,
-                  background: cell.is_black ? "#1f2937" : "white",
+                  background: cell.is_black ? "var(--surface-inverse)" : "white",
                   position: "relative",
                   display: "flex",
                   alignItems: "center",
@@ -556,7 +556,7 @@ function PuzzlePreview({
                       left: 2,
                       fontSize: size <= 5 ? 9 : 7,
                       fontWeight: 600,
-                      color: "#374151",
+                      color: "var(--text-secondary)",
                     }}
                   >
                     {numberLabel}
@@ -577,18 +577,18 @@ function PuzzlePreview({
         <div style={{ marginBottom: 8 }}>
           <strong>Across</strong>
           {cluesData.across.map((c: any) => (
-            <div key={c.number} style={{ margin: "2px 0", color: "#374151" }}>
+            <div key={c.number} style={{ margin: "2px 0", color: "var(--text-secondary)" }}>
               <span style={{ fontWeight: 600 }}>{c.number}.</span> {c.clue}{" "}
-              <span style={{ color: "#9ca3af", fontFamily: "monospace" }}>({c.answer})</span>
+              <span style={{ color: "var(--text-disabled)", fontFamily: "monospace" }}>({c.answer})</span>
             </div>
           ))}
         </div>
         <div>
           <strong>Down</strong>
           {cluesData.down.map((c: any) => (
-            <div key={c.number} style={{ margin: "2px 0", color: "#374151" }}>
+            <div key={c.number} style={{ margin: "2px 0", color: "var(--text-secondary)" }}>
               <span style={{ fontWeight: 600 }}>{c.number}.</span> {c.clue}{" "}
-              <span style={{ color: "#9ca3af", fontFamily: "monospace" }}>({c.answer})</span>
+              <span style={{ color: "var(--text-disabled)", fontFamily: "monospace" }}>({c.answer})</span>
             </div>
           ))}
         </div>
@@ -678,9 +678,9 @@ function ManagePuzzles({ token }: { token: string }) {
             style={{
               padding: "6px 14px",
               borderRadius: 8,
-              border: "1px solid #d1d5db",
-              background: filter === f ? "#2563eb" : "white",
-              color: filter === f ? "white" : "#374151",
+              border: "1px solid var(--border)",
+              background: filter === f ? "var(--primary)" : "white",
+              color: filter === f ? "white" : "var(--text-secondary)",
               fontWeight: 600,
               fontSize: 13,
               cursor: "pointer",
@@ -695,9 +695,9 @@ function ManagePuzzles({ token }: { token: string }) {
           style={{
             padding: "6px 14px",
             borderRadius: 8,
-            border: "1px solid #d1d5db",
-            background: "white",
-            color: "#0f172a",
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            color: "var(--text)",
             cursor: "pointer",
             fontSize: 13,
           }}
@@ -709,7 +709,7 @@ function ManagePuzzles({ token }: { token: string }) {
       {error && <p style={{ color: "crimson", fontWeight: 600 }}>{error}</p>}
 
       {puzzles.length === 0 && !loading && (
-        <p style={{ color: "#6b7280" }}>No puzzles found.</p>
+        <p style={{ color: "var(--text-muted)" }}>No puzzles found.</p>
       )}
 
       <div style={{ display: "grid", gap: 12 }}>
@@ -721,7 +721,7 @@ function ManagePuzzles({ token }: { token: string }) {
             >
               <div>
                 <strong>{p.title || "Untitled"}</strong>{" "}
-                <span style={{ color: "#6b7280", fontSize: 13 }}>
+                <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
                   #{p.id} · {p.puzzle_type} · {p.puzzle_date ? `scheduled ${p.puzzle_date}` : "unassigned"} · by {p.created_by || "unknown"}
                 </span>
               </div>
@@ -732,8 +732,8 @@ function ManagePuzzles({ token }: { token: string }) {
                     borderRadius: 6,
                     fontSize: 12,
                     fontWeight: 700,
-                    background: p.puzzle_date ? "#d1fae5" : "#fef3c7",
-                    color: p.puzzle_date ? "#065f46" : "#92400e",
+                    background: p.puzzle_date ? "var(--success-surface)" : "var(--warning-surface)",
+                    color: p.puzzle_date ? "#065f46" : "var(--warning-text)",
                   }}
                 >
                   {p.puzzle_date ? "Scheduled" : "Repository"}
@@ -743,9 +743,9 @@ function ManagePuzzles({ token }: { token: string }) {
                   style={{
                     padding: "5px 14px",
                     borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    background: "white",
-                    color: "#0f172a",
+                    border: "1px solid var(--border)",
+                    background: "var(--surface)",
+                    color: "var(--text)",
                     fontWeight: 600,
                     fontSize: 12,
                     cursor: "pointer",
@@ -757,7 +757,7 @@ function ManagePuzzles({ token }: { token: string }) {
                   type="date"
                   value={assignDates[p.id] ?? (p.puzzle_date || todayStr())}
                   onChange={(e) => setAssignDates((m) => ({ ...m, [p.id]: e.target.value }))}
-                  style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
+                  style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12 }}
                 />
                 <button
                   onClick={() => handleAssign(p.id)}
@@ -765,8 +765,8 @@ function ManagePuzzles({ token }: { token: string }) {
                     padding: "5px 14px",
                     borderRadius: 6,
                     border: "none",
-                    background: "#059669",
-                    color: "white",
+                    background: "var(--success)",
+                    color: "var(--text-on-brand)",
                     fontWeight: 600,
                     fontSize: 12,
                     cursor: "pointer",
@@ -780,9 +780,9 @@ function ManagePuzzles({ token }: { token: string }) {
                     style={{
                       padding: "5px 14px",
                       borderRadius: 6,
-                      border: "1px solid #d1d5db",
-                      background: "white",
-                      color: "#374151",
+                      border: "1px solid var(--border)",
+                      background: "var(--surface)",
+                      color: "var(--text-secondary)",
                       fontWeight: 600,
                       fontSize: 12,
                       cursor: "pointer",
@@ -796,9 +796,9 @@ function ManagePuzzles({ token }: { token: string }) {
                     style={{
                       padding: "5px 14px",
                       borderRadius: 6,
-                      border: "1px solid #fca5a5",
-                      background: "white",
-                      color: "#dc2626",
+                      border: "1px solid var(--danger-border)",
+                      background: "var(--surface)",
+                      color: "var(--danger)",
                       fontWeight: 600,
                       fontSize: 12,
                       cursor: "pointer",
@@ -810,7 +810,7 @@ function ManagePuzzles({ token }: { token: string }) {
               </div>
             </div>
             {viewId === p.id && (
-              <div className="card" style={{ margin: 0, background: "#f8fafc" }}>
+              <div className="card" style={{ margin: 0, background: "var(--surface-subtle)" }}>
                 <PuzzleAdminPreview puzzle={p} />
               </div>
             )}
@@ -852,9 +852,9 @@ export default function PuzzleBuilder() {
             style={{
               padding: "10px 20px",
               borderRadius: 10,
-              border: tab === t.key ? "2px solid #2563eb" : "2px solid #e5e7eb",
+              border: tab === t.key ? "2px solid var(--primary)" : "2px solid var(--border-subtle)",
               background: tab === t.key ? "rgba(37,99,235,0.08)" : "white",
-              color: tab === t.key ? "#1d4ed8" : "#374151",
+              color: tab === t.key ? "var(--primary-strong)" : "var(--text-secondary)",
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",

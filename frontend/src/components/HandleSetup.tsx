@@ -44,7 +44,7 @@ export default function HandleSetup() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)",
+        background: "linear-gradient(135deg, rgb(var(--primary-rgb) / 8%) 0%, var(--surface-subtle) 100%)",
         padding: 24,
       }}
     >
@@ -73,7 +73,7 @@ export default function HandleSetup() {
         <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>
           Welcome, {user.display_name}!
         </h1>
-        <p style={{ color: "#6b7280", margin: "0 0 24px", fontSize: 15 }}>
+        <p style={{ color: "var(--text-muted)", margin: "0 0 24px", fontSize: 15 }}>
           Pick a handle to get started. This is how other players will see you
           on leaderboards.
         </p>
@@ -89,12 +89,12 @@ export default function HandleSetup() {
           <span
             style={{
               padding: "10px 10px 10px 14px",
-              background: "#f3f4f6",
-              border: "1px solid #d1d5db",
+              background: "var(--surface-inset)",
+              border: "1px solid var(--border)",
               borderRight: "none",
               borderRadius: "10px 0 0 10px",
               fontSize: 16,
-              color: "#6b7280",
+              color: "var(--text-muted)",
               lineHeight: 1,
             }}
           >
@@ -114,7 +114,7 @@ export default function HandleSetup() {
               flex: 1,
               padding: "10px 14px",
               borderRadius: "0 10px 10px 0",
-              border: "1px solid #d1d5db",
+              border: "1px solid var(--border)",
               fontSize: 16,
               boxSizing: "border-box",
               outline: "none",
@@ -122,7 +122,7 @@ export default function HandleSetup() {
           />
         </div>
 
-        <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 20px" }}>
+        <p style={{ fontSize: 12, color: "var(--text-disabled)", margin: "0 0 20px" }}>
           3–24 characters: letters, numbers, and underscores
         </p>
 
@@ -140,9 +140,9 @@ export default function HandleSetup() {
             cursor: !valid || saving ? "default" : "pointer",
             background:
               !valid || saving
-                ? "#d1d5db"
-                : "linear-gradient(135deg, #2563eb, #1d4ed8)",
-            color: !valid || saving ? "#9ca3af" : "white",
+                ? "var(--border)"
+                : "var(--brand-gradient)",
+            color: !valid || saving ? "var(--text-disabled)" : "white",
             transition: "all 0.15s",
           }}
         >

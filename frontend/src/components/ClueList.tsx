@@ -10,7 +10,7 @@ interface ClueListProps {
 export default function ClueList({ across, down, activeClue, onClueClick }: ClueListProps) {
   const renderClues = (direction: "across" | "down", clues: Clue[]) => (
     <div style={{ marginBottom: 16 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", marginBottom: 8, color: "#374151" }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", marginBottom: 8, color: "var(--text-secondary)" }}>
         {direction}
       </h3>
       <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -31,7 +31,7 @@ export default function ClueList({ across, down, activeClue, onClueClick }: Clue
                 transition: "background 0.15s",
               }}
             >
-              <span style={{ fontWeight: 700, marginRight: 6, color: "#6b7280" }}>{clue.number}.</span>
+              <span style={{ fontWeight: 700, marginRight: 6, color: "var(--text-muted)" }}>{clue.number}.</span>
               {clue.clue}
             </li>
           );

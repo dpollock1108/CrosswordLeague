@@ -90,9 +90,9 @@ export default function Profile() {
             <div>
               <p style={{ margin: 0, fontWeight: 700, fontSize: 18 }}>{user.display_name}</p>
               {user.handle && (
-                <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>@{user.handle}</p>
+                <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>@{user.handle}</p>
               )}
-              <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>{user.email}</p>
+              <p style={{ margin: 0, color: "var(--text-disabled)", fontSize: 13 }}>{user.email}</p>
             </div>
           </div>
 
@@ -109,7 +109,7 @@ export default function Profile() {
                   marginTop: 4,
                   padding: "8px 12px",
                   borderRadius: 8,
-                  border: "1px solid #d1d5db",
+                  border: "1px solid var(--border)",
                   fontSize: 14,
                   boxSizing: "border-box",
                 }}
@@ -119,9 +119,9 @@ export default function Profile() {
             <label style={{ fontSize: 14, fontWeight: 600 }}>
               Handle
               {user.handle ? (
-                <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 400, color: "#374151" }}>
+                <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 400, color: "var(--text-secondary)" }}>
                   @{user.handle}
-                  <span style={{ display: "block", fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                  <span style={{ display: "block", fontSize: 12, color: "var(--text-disabled)", marginTop: 2 }}>
                     Handles cannot be changed once set.
                   </span>
                 </p>
@@ -130,12 +130,12 @@ export default function Profile() {
                   <div style={{ display: "flex", alignItems: "center", marginTop: 4 }}>
                     <span style={{
                       padding: "8px 8px 8px 12px",
-                      background: "#f3f4f6",
-                      border: "1px solid #d1d5db",
+                      background: "var(--surface-inset)",
+                      border: "1px solid var(--border)",
                       borderRight: "none",
                       borderRadius: "8px 0 0 8px",
                       fontSize: 14,
-                      color: "#6b7280",
+                      color: "var(--text-muted)",
                     }}>
                       @
                     </span>
@@ -149,13 +149,13 @@ export default function Profile() {
                         flex: 1,
                         padding: "8px 12px",
                         borderRadius: "0 8px 8px 0",
-                        border: "1px solid #d1d5db",
+                        border: "1px solid var(--border)",
                         fontSize: 14,
                         boxSizing: "border-box",
                       }}
                     />
                   </div>
-                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-disabled)" }}>
                     3-24 characters, letters, numbers, and underscores only.
                     <strong> This cannot be changed later.</strong>
                   </p>
@@ -174,14 +174,14 @@ export default function Profile() {
                 fontWeight: 700,
                 fontSize: 14,
                 cursor: saving ? "default" : "pointer",
-                background: saving ? "#9ca3af" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
-                color: "white",
+                background: saving ? "var(--surface-disabled)" : "var(--brand-gradient)",
+                color: "var(--text-on-brand)",
               }}
             >
               {saving ? "Saving..." : "Save Profile"}
             </button>
 
-            {saveMsg && <p style={{ color: "#059669", fontWeight: 600, margin: "4px 0 0" }}>{saveMsg}</p>}
+            {saveMsg && <p style={{ color: "var(--success)", fontWeight: 600, margin: "4px 0 0" }}>{saveMsg}</p>}
             {saveError && <p style={{ color: "crimson", fontWeight: 600, margin: "4px 0 0" }}>{saveError}</p>}
           </div>
         </div>
@@ -201,7 +201,7 @@ export default function Profile() {
 
             {stats.weekday_averages && (
               <div style={{ marginTop: 16 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
                   Weekday Averages
                 </h4>
                 <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
@@ -210,7 +210,7 @@ export default function Profile() {
                       .filter((d) => stats.weekday_averages?.[d] != null)
                       .map((day) => (
                         <tr key={day}>
-                          <td style={{ padding: "3px 0", color: "#374151" }}>{day}</td>
+                          <td style={{ padding: "3px 0", color: "var(--text-secondary)" }}>{day}</td>
                           <td style={{ padding: "3px 0", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                             {formatSeconds(stats.weekday_averages![day])}
                           </td>
@@ -230,7 +230,7 @@ export default function Profile() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p style={{ margin: 0, fontSize: 12, color: "#6b7280", fontWeight: 600 }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>{label}</p>
       <p style={{ margin: "2px 0 0", fontSize: 18, fontWeight: 700 }}>{value}</p>
     </div>
   );

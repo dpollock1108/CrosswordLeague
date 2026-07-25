@@ -28,15 +28,15 @@ export default function Landing() {
         alignItems: "center",
         justifyContent: "center",
         padding: "48px 20px",
-        background: "linear-gradient(160deg, #eff6ff 0%, #f8fafc 60%)",
+        background: "linear-gradient(160deg, rgb(var(--primary-rgb) / 8%) 0%, var(--surface-subtle) 60%)",
       }}
     >
       <div style={{ maxWidth: 760, width: "100%", textAlign: "center" }}>
-        <p style={{ textTransform: "uppercase", letterSpacing: 2, fontSize: 13, color: "#2563eb", fontWeight: 700, margin: 0 }}>
+        <p style={{ textTransform: "uppercase", letterSpacing: 2, fontSize: 13, color: "var(--primary)", fontWeight: 700, margin: 0 }}>
           Boys and Girls
         </p>
         <h1 style={{ fontSize: 44, lineHeight: 1.1, margin: "8px 0 12px" }}>Crossword League</h1>
-        <p style={{ fontSize: 18, color: "#475569", margin: "0 auto 28px", maxWidth: 560 }}>
+        <p style={{ fontSize: 18, color: "var(--text-secondary)", margin: "0 auto 28px", maxWidth: 560 }}>
           A home for daily crosswords and friendly competition. Solve the puzzle, climb the leaderboard,
           and run your own league with your friends.
         </p>
@@ -49,11 +49,11 @@ export default function Landing() {
             gap: 10,
             padding: 20,
             borderRadius: 16,
-            background: "white",
+            background: "var(--surface)",
             boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
           }}
         >
-          <span style={{ fontWeight: 600, color: "#0f172a" }}>Sign in to start playing</span>
+          <span style={{ fontWeight: 600, color: "var(--text)" }}>Sign in to start playing</span>
           <GoogleLogin
             onSuccess={(resp) => {
               if (resp.credential) {
@@ -84,12 +84,12 @@ export default function Landing() {
               style={{
                 padding: 18,
                 borderRadius: 12,
-                background: "white",
-                border: "1px solid #e5e7eb",
+                background: "var(--surface)",
+                border: "1px solid var(--border-subtle)",
               }}
             >
               <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>{f.title}</h3>
-              <p style={{ margin: 0, color: "#475569", fontSize: 14, lineHeight: 1.45 }}>{f.body}</p>
+              <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.45 }}>{f.body}</p>
             </div>
           ))}
         </div>

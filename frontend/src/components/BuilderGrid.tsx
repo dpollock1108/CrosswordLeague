@@ -150,8 +150,8 @@ export default function BuilderGrid({
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
           gridTemplateRows: `repeat(${size}, ${cellSize}px)`,
           gap: 1,
-          background: "#1f2937",
-          border: "2px solid #1f2937",
+          background: "var(--surface-inverse)",
+          border: "2px solid var(--grid-line)",
           borderRadius: 4,
           outline: "none",
         }}
@@ -162,10 +162,10 @@ export default function BuilderGrid({
             const isSelected = selected?.row === r && selected?.col === c;
             const number = cellNumbers.get(key);
 
-            let bg = "white";
-            if (cell.is_black) bg = "#1f2937";
-            else if (isSelected) bg = "#93c5fd";
-            else if (wordCells.has(key)) bg = "#dbeafe";
+            let bg = "var(--cell-bg)";
+            if (cell.is_black) bg = "var(--surface-inverse)";
+            else if (isSelected) bg = "var(--cell-selected)";
+            else if (wordCells.has(key)) bg = "var(--cell-word)";
 
             return (
               <div
@@ -203,7 +203,7 @@ export default function BuilderGrid({
                     left: 3,
                     fontSize: size <= 5 ? 11 : 9,
                     fontWeight: 600,
-                    color: "#374151",
+                    color: "var(--text-secondary)",
                     lineHeight: 1,
                   }}
                 >
@@ -211,7 +211,7 @@ export default function BuilderGrid({
                 </span>
               )}
               {!cell.is_black && (
-                <span style={{ fontSize, fontWeight: 600, color: "#111827" }}>
+                <span style={{ fontSize, fontWeight: 600, color: "var(--cell-text)" }}>
                   {cell.letter}
                 </span>
               )}
