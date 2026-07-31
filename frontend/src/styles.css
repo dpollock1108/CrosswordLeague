@@ -19,7 +19,7 @@
    * whole declaration silently. */
   --primary-rgb: 37 99 235;
   --primary: rgb(var(--primary-rgb));
-  --primary-strong: #1d4ed8;
+  --primary-strong: #879edd;
   --accent-rgb: 14 165 233;
   --accent: rgb(var(--accent-rgb));
   --brand-gradient: linear-gradient(135deg, var(--primary), var(--accent));
@@ -55,14 +55,11 @@
   --warning-surface: #fef3c7;
   --warning-text: #92400e;
 
-  /* Crossword grid. Selection/highlight are alpha tints of the brand so the
-   * grid tracks the app palette; the error tint stays red (semantic). */
-  --grid-line: #1f2937;
-  --cell-bg: #ffffff;
-  --cell-text: #111827;
-  --cell-selected: rgb(var(--primary-rgb) / 40%);
-  --cell-word: rgb(var(--primary-rgb) / 14%);
-  --cell-error: #fecaca;
+  /* NOTE: the crossword grid (CrosswordGrid / BuilderGrid / ClueList) is
+   * deliberately NOT tokenized. Its cells sit on a dark container that draws
+   * the gridlines, so brand-derived translucent tints composite to near-black
+   * and wreck legibility. Puzzle rendering stays fixed and readable no matter
+   * what the app or a league sets its palette to. */
 
   /* Effects */
   --radius: 12px;

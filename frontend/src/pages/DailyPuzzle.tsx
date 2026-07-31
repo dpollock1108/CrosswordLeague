@@ -373,8 +373,8 @@ export default function DailyPuzzle() {
           style={{
             padding: "8px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 14,
             cursor: "pointer",
-            background: puzzleType === t ? "var(--brand-gradient)" : "var(--surface-inset)",
-            color: puzzleType === t ? "white" : "var(--text-secondary)",
+            background: puzzleType === t ? "linear-gradient(135deg,#2563eb,#1d4ed8)" : "#f3f4f6",
+            color: puzzleType === t ? "white" : "#374151",
           }}
         >
           {t === "mini_5x5" ? "Mini (5x5)" : "Medium (9x9)"}
@@ -385,9 +385,9 @@ export default function DailyPuzzle() {
 
   const chipStyle = (isActive: boolean, done: boolean) => ({
     padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
-    color: "var(--text)",
-    border: isActive ? "2px solid var(--primary)" : "1px solid var(--border)",
-    background: done ? "var(--success-surface)" : "white",
+    color: "#0f172a",
+    border: isActive ? "2px solid #2563eb" : "1px solid #d1d5db",
+    background: done ? "#d1fae5" : "white",
   } as const);
 
   const archiveNav = archive ? (
@@ -411,7 +411,7 @@ export default function DailyPuzzle() {
       </div>
       {archive.completed.length > 0 && (
         <details>
-          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
+          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#374151" }}>
             Your completed puzzles ({archive.completed.length})
           </summary>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
@@ -461,7 +461,7 @@ export default function DailyPuzzle() {
           fontSize: 28,
           fontWeight: 700,
           fontVariantNumeric: "tabular-nums",
-          color: isComplete ? "var(--success)" : "var(--surface-inverse)",
+          color: isComplete ? "#059669" : "#1f2937",
         }}>
           {formatTime(elapsed)}
         </div>
@@ -475,7 +475,7 @@ export default function DailyPuzzle() {
           marginBottom: 16,
           textAlign: "center",
         }}>
-          <h3 style={{ color: "var(--success)", margin: "0 0 4px" }}>Puzzle Complete!</h3>
+          <h3 style={{ color: "#059669", margin: "0 0 4px" }}>Puzzle Complete!</h3>
           <p style={{ margin: 0 }}>
             Solved in <strong>{formatTime(submitResult.seconds ?? elapsed)}</strong>
             {submitResult.points != null && <> — earned <strong>{submitResult.points} points</strong></>}
@@ -506,7 +506,7 @@ export default function DailyPuzzle() {
               fontSize: 18,
               cursor: "pointer",
               background: "linear-gradient(135deg, #059669, #10b981)",
-              color: "var(--text-on-brand)",
+              color: "white",
             }}
           >
             {starting ? "Starting…" : "▶ Play"}
