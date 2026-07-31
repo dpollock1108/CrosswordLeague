@@ -8,9 +8,14 @@ RUN npm ci
 
 COPY frontend/ ./
 
-# VITE_API_BASE is injected at build time via --build-arg
+# Vite inlines these at build time, so they must be present here rather than as
+# Cloud Run runtime env vars. Neither is a secret: VITE_API_BASE is empty so the
+# SPA talks to its own origin, and the Google client ID is public by design (it
+# ships in the page for every visitor to see).
 ARG VITE_API_BASE=""
-ENV VITE_API_BASE=${VITE_API_BASE}
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_API_BASE=${VITE_API_BASE} \
+    VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 
 RUN npm run build
 
@@ -22,21 +27,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install Python dependencies from pyproject.toml
-RUN pip install --no-cache-dir --upgrade pip
+# Dependencies come from uv.lock, not a hand-written list. An earlier version of
+# this file duplicated the dependency list inline and drifted out of sync with
+# pyproject.toml — the image shipped without python-jose, so `from jose import`
+# in app/auth.py killed the container on startup. Installing from the lock file
+# makes that class of bug impossible and pins exact versions.
+COPY --from=ghcr.io/astral-sh/uv:0.9.2 /uv /bin/uv
 
-COPY pyproject.toml ./
-# Install all declared dependencies (fastapi, sqlmodel, uvicorn, anthropic,
-# python-multipart, python-dotenv) plus the postgres driver
-RUN pip install --no-cache-dir \
-        "fastapi>=0.115.0" \
-        "sqlmodel>=0.0.22" \
-        "uvicorn>=0.30.6" \
-        "anthropic>=0.40.0" \
-        "python-multipart>=0.0.9" \
-        "python-dotenv>=1.0.0" \
-        "psycopg[binary]>=3.2.1" \
-        "alembic>=1.13.0"
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/usr/local
+
+COPY pyproject.toml uv.lock ./
+# --no-install-project: the app is run from /app as a plain module tree, it is
+# not packaged, so only its dependencies need installing.
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy application code
 COPY app ./app
