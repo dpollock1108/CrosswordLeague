@@ -4,7 +4,9 @@ import { fetchPuzzle, fetchPuzzleArchive, fetchTodayPuzzle, saveProgress, startS
 import type {
   Clue, CluesData, GridCell, GridData, PuzzleArchiveResponse, PuzzlePublic, SolveAttempt, SubmitResult,
 } from "../types";
-import CrosswordGrid, { findClueForCell, getWordCells, type CellPosition } from "../components/CrosswordGrid";
+import CrosswordGrid, {
+  findClueForCell, getWordCells, gridPixelWidth, type CellPosition,
+} from "../components/CrosswordGrid";
 import ClueList from "../components/ClueList";
 
 function formatTime(seconds: number): string {
@@ -295,6 +297,12 @@ export default function DailyPuzzle() {
     ];
   }, [cluesData]);
 
+  // Tab moves to the next clue that still has an empty square, landing on that
+  // clue's first empty square rather than its first square. Scanning starts one
+  // past the current clue and wraps all the way around, so the current clue is
+  // considered last — if it is the only unfinished one you stay in it, on its
+  // first gap. When nothing is unfinished (grid full) it degrades to plain
+  // next-clue movement so a solved grid is still navigable.
   const onTabClue = useCallback(
     (forward: boolean) => {
       if (!allClues.length || !selected || !gridData || !cluesData) return;
@@ -302,10 +310,24 @@ export default function DailyPuzzle() {
       const currentIdx = allClues.findIndex(
         (c) => c.dir === direction && c.number === currentClue?.number,
       );
-      const nextIdx = forward
-        ? (currentIdx + 1) % allClues.length
-        : (currentIdx - 1 + allClues.length) % allClues.length;
-      const next = allClues[nextIdx];
+      const from = currentIdx >= 0 ? currentIdx : 0;
+      const step = forward ? 1 : -1;
+      const n = allClues.length;
+      // JS % keeps the sign of the dividend, so normalize for backward steps.
+      const at = (k: number) => allClues[(((from + step * k) % n) + n) % n];
+      const letters = lettersRef.current;
+
+      for (let k = 1; k <= n; k++) {
+        const c = at(k);
+        const empty = firstEmptyInClue(letters, gridData.cells, size, c, c.dir);
+        if (empty) {
+          setDirection(c.dir);
+          setSelected(empty);
+          return;
+        }
+      }
+
+      const next = at(1);
       setDirection(next.dir);
       setSelected({ row: next.row, col: next.col });
     },
@@ -318,11 +340,12 @@ export default function DailyPuzzle() {
     setSelected({ row: clue.row, col: clue.col });
   }, []);
 
-  // Active clue for highlighting in ClueList
+  // The clue the cursor is currently in — drives both the ClueList highlight
+  // and the banner above the grid, so the two can never disagree.
   const activeClue = useMemo(() => {
     if (!selected || !gridData || !cluesData) return null;
     const clue = findClueForCell(cluesData, gridData.cells, size, selected.row, selected.col, direction);
-    return clue ? { direction, number: clue.number } : null;
+    return clue ? { direction, number: clue.number, text: clue.clue } : null;
   }, [selected, direction, gridData, cluesData, size]);
 
   // Auto-submit: whenever the grid is completely filled (and on every change
@@ -516,6 +539,37 @@ export default function DailyPuzzle() {
         /* Grid + Clues layout */
         <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
           <div>
+            {/* Current clue, always on screen — the clue list can be scrolled
+              * anywhere without losing track of what you're actually solving.
+              * Reserves its height so the grid doesn't shift as clues change. */}
+            <div
+              style={{
+                width: gridPixelWidth(size),
+                maxWidth: "100%",
+                minHeight: 56,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                marginBottom: 10,
+                borderRadius: 6,
+                background: "#dbeafe",
+                color: "#111827",
+                fontSize: 15,
+                lineHeight: 1.35,
+              }}
+            >
+              {activeClue && (
+                <>
+                  <span style={{ fontWeight: 700, whiteSpace: "nowrap", color: "#1e3a8a" }}>
+                    {activeClue.number}
+                    {activeClue.direction === "across" ? "A" : "D"}
+                  </span>
+                  <span>{activeClue.text}</span>
+                </>
+              )}
+            </div>
+
             <CrosswordGrid
               size={size}
               cells={gridData.cells}

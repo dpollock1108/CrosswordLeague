@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Clue } from "../types";
 
 interface ClueListProps {
@@ -8,6 +9,15 @@ interface ClueListProps {
 }
 
 export default function ClueList({ across, down, activeClue, onClueClick }: ClueListProps) {
+  const activeRef = useRef<HTMLLIElement>(null);
+
+  // Keep the selected clue visible: typing or tabbing can move selection to a
+  // clue that has scrolled out of the list. "nearest" scrolls the minimum
+  // amount, so an already-visible clue doesn't jump the list around.
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeClue?.direction, activeClue?.number]);
+
   const renderClues = (direction: "across" | "down", clues: Clue[]) => (
     <div style={{ marginBottom: 16 }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", marginBottom: 8, color: "#374151" }}>
@@ -19,6 +29,7 @@ export default function ClueList({ across, down, activeClue, onClueClick }: Clue
           return (
             <li
               key={`${direction}-${clue.number}`}
+              ref={isActive ? activeRef : undefined}
               onClick={() => onClueClick(direction, clue)}
               style={{
                 padding: "6px 10px",
