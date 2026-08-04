@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { fetchMySubmissions, submitQotdQuestion } from "../api";
-import type { QotdSubmission } from "../types";
+import { fetchMySubmissions, fetchQotdTracks, submitQotdQuestion } from "../api";
+import type { QotdSubmission, QotdTrack } from "../types";
 
 const CHOICE_LABELS = ["A", "B", "C", "D"];
 const EMPTY_CHOICES = ["", "", "", ""];
@@ -28,6 +28,8 @@ function StatusPill({ status }: { status: string }) {
 
 export default function QotdSubmit() {
   const { token, user } = useAuth();
+  const [tracks, setTracks] = useState<QotdTrack[]>([]);
+  const [track, setTrack] = useState("general");
   const [prompt, setPrompt] = useState("");
   const [choices, setChoices] = useState<string[]>(EMPTY_CHOICES);
   const [answerIndex, setAnswerIndex] = useState(0);
@@ -53,6 +55,17 @@ export default function QotdSubmit() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!token) return;
+    fetchQotdTracks(token)
+      .then((r) => {
+        setTracks(r.tracks);
+        if (r.tracks.length > 0) setTrack((t) => (r.tracks.some((x) => x.slug === t) ? t : r.tracks[0].slug));
+      })
+      .catch(() => undefined);
+  }, [token]);
+
+  const activeTrack = tracks.find((t) => t.slug === track) ?? null;
   const trimmed = choices.map((c) => c.trim());
   const canSubmit =
     prompt.trim().length >= 10 &&
@@ -67,6 +80,7 @@ export default function QotdSubmit() {
     setError(null);
     try {
       const res = await submitQotdQuestion(token, {
+        track,
         prompt: prompt.trim(),
         choices: trimmed,
         answer_index: answerIndex,
@@ -113,12 +127,31 @@ export default function QotdSubmit() {
       )}
 
       <form className="card" onSubmit={handleSubmit} style={{ gap: 16 }}>
+        {tracks.length > 1 && (
+          <label>
+            Track
+            <select value={track} onChange={(e) => setTrack(e.target.value)}>
+              {tracks.map((t) => (
+                <option key={t.slug} value={t.slug}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>
+              {activeTrack?.description}
+              {activeTrack
+                ? ` Top points inside ${activeTrack.speed_tiers[0]?.[0] ?? "—"}s on this track.`
+                : ""}
+            </span>
+          </label>
+        )}
+
         <label>
           Question
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Which planet in our solar system has the shortest day?"
+            placeholder={activeTrack?.example_prompt || "Which planet has the shortest day?"}
             rows={2}
             maxLength={400}
           />
@@ -211,7 +244,8 @@ export default function QotdSubmit() {
                   <StatusPill status={s.status} />
                 </div>
                 <p className="muted" style={{ margin: "6px 0 0", fontSize: 13 }}>
-                  Answer: {CHOICE_LABELS[s.answer_index]} — {s.choices[s.answer_index]}
+                  {tracks.find((t) => t.slug === s.track)?.name ?? s.track} · Answer:{" "}
+                  {CHOICE_LABELS[s.answer_index]} — {s.choices[s.answer_index]}
                   {s.question_date ? ` · live on ${s.question_date}` : ""}
                 </p>
                 {s.verification.notes && (

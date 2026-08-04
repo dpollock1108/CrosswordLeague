@@ -48,9 +48,10 @@ def _make_user(session, name, is_admin=False):
     return user
 
 
-def _bank_question(session, prompt=QUESTION["prompt"], day=None, created_at=None):
+def _bank_question(session, prompt=QUESTION["prompt"], day=None, created_at=None, track="general"):
     """Insert a pre-verified question, optionally already scheduled."""
     q = TriviaQuestion(
+        track=track,
         prompt=prompt,
         choices_data=json.dumps(QUESTION["choices"]),
         answer_index=QUESTION["answer_index"],
@@ -68,7 +69,7 @@ def _bank_question(session, prompt=QUESTION["prompt"], day=None, created_at=None
 
 
 def _fake_verifier(monkeypatch, verdict="approve", confidence=95):
-    def fake(prompt, choices, answer_index, explanation=None):
+    def fake(prompt, choices, answer_index, explanation=None, track="general"):
         return VerificationResult(
             verdict=verdict,
             confidence=confidence,

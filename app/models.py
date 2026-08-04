@@ -133,6 +133,9 @@ class TriviaQuestion(SQLModel, table=True):
     __tablename__ = "trivia_question"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    # Which daily stream this belongs to — see qotd_tracks.TRACKS. Each track
+    # runs its own question per day, its own bank, board, and streak.
+    track: str = Field(default="general", index=True)
     prompt: str = Field(sa_column=Column(Text, nullable=False))
     # JSON array of answer choices (exactly QUESTION_CHOICE_COUNT of them).
     choices_data: str = Field(sa_column=Column(Text, nullable=False))
@@ -146,8 +149,8 @@ class TriviaQuestion(SQLModel, table=True):
     # "pending" (awaiting verification) -> "approved" | "needs_review" | "rejected".
     # "approved" questions are eligible for scheduling; "scheduled" once dated.
     status: str = Field(default="pending", index=True)
-    # Null = in the bank. Set = live on that date. Only one question per date;
-    # enforced in the service layer since SQL treats NULLs as distinct.
+    # Null = in the bank. Set = live on that date. One question per (track,
+    # date); enforced in the service layer since SQL treats NULLs as distinct.
     question_date: Optional[date] = Field(default=None, index=True)
 
     # AI verification outcome.
@@ -171,6 +174,9 @@ class TriviaAnswer(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True, nullable=False)
     question_id: int = Field(foreign_key="trivia_question.id", index=True, nullable=False)
+    # Denormalized from the question so boards and streaks can filter by track
+    # and date without joining.
+    track: str = Field(default="general", index=True)
     question_date: date = Field(index=True, nullable=False)
     started_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     answered_at: Optional[datetime] = Field(default=None)

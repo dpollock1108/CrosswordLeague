@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from .config import settings
+from .qotd_tracks import DEFAULT_TRACK, get_track
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ the content rules.
 Return ONLY valid JSON — no markdown fences, no commentary."""
 
 USER_TEMPLATE = """Verify this submitted trivia question.
-
+{track_notes}
 Question: {prompt}
 
 Choices:
@@ -115,12 +116,19 @@ def verify_question(
     choices: List[str],
     answer_index: int,
     explanation: Optional[str] = None,
+    track: str = DEFAULT_TRACK,
 ) -> VerificationResult:
-    """Fact-check a submitted question. Never raises — failures become reviews."""
+    """Fact-check a submitted question. Never raises — failures become reviews.
+
+    ``track`` selects any extra criteria the stream needs on top of the shared
+    ones — a math question gets its arithmetic re-derived, for instance.
+    """
     if not settings.anthropic_api_key:
         return _needs_review("AI verification unavailable (ANTHROPIC_API_KEY not configured).")
 
     choice_list = "\n".join(f"[{i}] {c}" for i, c in enumerate(choices))
+    extra = get_track(track).verifier_notes
+    track_notes = f"\n{extra}\n" if extra else ""
 
     try:
         from anthropic import Anthropic
@@ -134,6 +142,7 @@ def verify_question(
                 {
                     "role": "user",
                     "content": USER_TEMPLATE.format(
+                        track_notes=track_notes,
                         prompt=prompt,
                         choice_list=choice_list,
                         answer_index=answer_index,

@@ -24,8 +24,10 @@ from ..qotd_schemas import (
     SubmissionPublic,
     SubmissionResult,
     TodayResponse,
+    TracksResponse,
 )
 from ..qotd_service import QotdError
+from ..qotd_tracks import DEFAULT_TRACK, track_slugs
 
 router = APIRouter(prefix="/qotd", tags=["qotd"])
 
@@ -46,13 +48,26 @@ def _get_question(session: Session, question_id: int) -> TriviaQuestion:
 # ---------------------------------------------------------------------------
 
 
+@router.get("/tracks", response_model=TracksResponse)
+def tracks(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> TracksResponse:
+    """Every daily track with your state on it today, and its scoring tiers."""
+    return qotd_service.list_tracks(session, user)
+
+
 @router.get("/today", response_model=TodayResponse)
 def today(
+    track: str = Query(DEFAULT_TRACK, description=f"One of: {', '.join(track_slugs())}"),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> TodayResponse:
-    """Today's question (answer key withheld until you've answered)."""
-    return qotd_service.get_today(session, user)
+    """One track's question today (answer key withheld until you've answered)."""
+    try:
+        return qotd_service.get_today(session, user, track=track)
+    except QotdError as exc:
+        raise _bad_request(exc)
 
 
 @router.post("/{question_id}/start", response_model=AnswerPublic, status_code=status.HTTP_201_CREATED)
@@ -93,12 +108,15 @@ def board(
     scope: str = Query("friends", pattern="^(friends|league)$"),
     league_id: Optional[int] = Query(None),
     day: Optional[date] = Query(None, description="Defaults to today"),
+    track: str = Query(DEFAULT_TRACK, description=f"One of: {', '.join(track_slugs())}"),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> DailyBoardResponse:
-    """Today's results for your friends or a league."""
+    """One track's results today for your friends or a league."""
     try:
-        return qotd_service.daily_board(session, user, scope=scope, league_id=league_id, day=day)
+        return qotd_service.daily_board(
+            session, user, scope=scope, league_id=league_id, day=day, track=track
+        )
     except QotdError as exc:
         raise _bad_request(exc)
 
@@ -109,13 +127,20 @@ def leaderboard(
     league_id: Optional[int] = Query(None),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    track: Optional[str] = Query(None, description="Omit to combine every track"),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ) -> QotdLeaderboardResponse:
     """Points table for a date window (defaults to the current Sun–Sat week)."""
     try:
         return qotd_service.leaderboard(
-            session, user, scope=scope, league_id=league_id, start=start_date, end=end_date
+            session,
+            user,
+            scope=scope,
+            league_id=league_id,
+            start=start_date,
+            end=end_date,
+            track=track,
         )
     except QotdError as exc:
         raise _bad_request(exc)
@@ -166,10 +191,11 @@ def admin_list(
     status_filter: Optional[str] = Query(
         None, alias="status", description="pending | approved | needs_review | rejected | scheduled"
     ),
+    track: Optional[str] = Query(None, description="Filter to one track"),
     session: Session = Depends(get_session),
     _: None = Depends(require_admin_or_token),
 ) -> List[QuestionAdminPublic]:
-    return qotd_service.list_questions_admin(session, status_filter)
+    return qotd_service.list_questions_admin(session, status_filter, track)
 
 
 @router.post("/admin/questions/{question_id}/review", response_model=QuestionAdminPublic)

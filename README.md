@@ -2,7 +2,7 @@
 
 A crossword puzzle platform where users solve daily puzzles, compete on leaderboards, and track stats. Includes Google SSO, AI-generated crosswords, and a time-based scoring system.
 
-It also hosts **QOTD** — question of the day — a Wordle-shaped trivia game sharing the same accounts, leagues, and weekly rhythm: one general-knowledge question a day, one shot at it, scored on correctness and speed. See [QOTD](#qotd--question-of-the-day).
+It also hosts **QOTD** — question of the day — a Wordle-shaped trivia game sharing the same accounts, leagues, and weekly rhythm: one question a day per track (general knowledge, math, …), one shot at each, scored on correctness and speed. See [QOTD](#qotd--question-of-the-day).
 
 ### Stack
 
@@ -102,7 +102,8 @@ app/
   vision.py        — NYT screenshot parsing via Claude Vision
   friend_service.py — Mutual friend graph (requests, accept/decline, friend ids)
   qotd_service.py  — QOTD submissions, scheduling, play loop, boards
-  qotd_scoring.py  — QOTD points (correctness + speed tiers + streaks)
+  qotd_scoring.py  — QOTD points (correctness + per-track speed tiers + streaks)
+  qotd_tracks.py   — Track registry: add a new daily question type here
   qotd_verify.py   — AI fact-check gate for submitted questions
   qotd_schemas.py  — QOTD request/response models
   qotd_seed.py     — Starter question bank
@@ -143,8 +144,8 @@ frontend/src/
 - **SolveAttempt** — user_id, puzzle_id, started_at, completed_at, seconds, grid_state (JSON for resume). One per user per puzzle.
 - **PuzzleResult** — player_id, puzzle_date, puzzle_type, seconds, source. Feeds into scoring. Unique on (player_id, puzzle_date, puzzle_type).
 - **Friendship** — requester_id, addressee_id, status (pending / accepted). One row per pair, in whichever direction the request went; reads match on both columns.
-- **TriviaQuestion** — prompt, choices_data (JSON), answer_index, submitted_by, status, nullable `question_date` (null = in the bank, set = live that day), plus the AI verdict fields.
-- **TriviaAnswer** — user_id, question_id, started_at, answered_at, seconds, selected_index, is_correct, points. One per user per question.
+- **TriviaQuestion** — track, prompt, choices_data (JSON), answer_index, submitted_by, status, nullable `question_date` (null = in the bank, set = live that day), plus the AI verdict fields. One live question per (track, date).
+- **TriviaAnswer** — user_id, question_id, track, started_at, answered_at, seconds, selected_index, is_correct, points. One per user per question, so a player can answer every track each day.
 
 ### Scoring
 
@@ -227,10 +228,29 @@ The `/play` page features an interactive crossword grid:
 
 ### QOTD — Question of the Day
 
-One general-knowledge multiple-choice question goes live per day. You get a single attempt,
-timed server-side from the moment you reveal the question, and you're ranked on whether you got
-it right and how fast. Friends' and league-mates' results stay hidden until you've answered, so
+One multiple-choice question goes live per day **per track**. You get a single attempt, timed
+server-side from the moment you reveal the question, and you're ranked on whether you got it
+right and how fast. Friends' and league-mates' results stay hidden until you've answered, so
 the board can't leak the answer.
+
+**Tracks.** A track is an independent daily stream — its own question each day, its own bank,
+board, streak, and speed tiers. Two ship today:
+
+| Track | Top speed tier | Clamp | For |
+|---|---|---|---|
+| `general` | ≤ 10s | 120s | General knowledge recall |
+| `math` | ≤ 30s | 600s | Problems you have to work out |
+
+Tracks are fully independent: answering the math question doesn't touch your general streak,
+each track awards its own fastest-of-the-day bonus, and a track with an empty bank simply has no
+question that day rather than borrowing from another.
+
+**Adding a track** is a one-entry change in `app/qotd_tracks.py` — register a `Track` with its
+slug, speed tiers, and clamp, and it appears in the play tabs, submission form, admin filters,
+and boards automatically. Nothing else needs to know about it. A slug is stored on every
+question and answer, so it must not change once questions exist under it. Give a new track its
+own tier table rather than reusing another's: the tiers encode how long that kind of question
+should take.
 
 **Where questions come from.** Every question is written by a player. A submission is
 fact-checked by Claude before it can be scheduled — the verifier works out the answer
@@ -255,18 +275,15 @@ game keeps running without a daily admin action.
 | | Points |
 |---|---|
 | Correct answer (base) | 2 |
-| ≤ 10s | +5 |
-| ≤ 20s | +4 |
-| ≤ 30s | +3 |
-| ≤ 60s | +2 |
-| slower | +1 |
-| Streak of 3 / 7 / 14 / 30 correct days | +1 / +2 / +3 / +4 |
-| Fastest correct answer of the day (ties included) | +1 |
+| Speed tier (per track, see above) | +5 / +4 / +3 / +2 / +1 |
+| Streak of 3 / 7 / 14 / 30 correct days on that track | +1 / +2 / +3 / +4 |
+| Fastest correct answer of the day, per track (ties included) | +1 |
 
-The first three are personal and stored on the answer as soon as you play. The daily speed bonus
-is scope-relative — the fastest among your friends isn't the fastest in your league — so it's
-applied when a board is built, mirroring the crossword leaderboard. Answers slower than 120s are
-clamped. Weekly boards run Sun–Sat, the same week the crossword league uses.
+Base, speed, and streak are personal and stored on the answer as soon as you play. The daily
+speed bonus is scope-relative — the fastest among your friends isn't the fastest in your league —
+so it's applied when a board is built, mirroring the crossword leaderboard. Answers slower than
+the track's clamp are capped. Weekly boards run Sun–Sat, the same week the crossword league uses,
+and combine every track by default with per-track filtering available.
 
 **Social.** Two overlapping scopes, both available on the standings panel:
 
@@ -276,17 +293,18 @@ clamped. Weekly boards run Sun–Sat, the same week the crossword league uses.
   QOTD board for its members.
 
 **QOTD API (requires auth):**
-- `GET /qotd/today` — Today's question; the answer key is withheld until you've answered
+- `GET /qotd/tracks` — Every track, its speed tiers, and your status/streak on it today
+- `GET /qotd/today?track=` — That track's question; the answer key is withheld until you've answered
 - `POST /qotd/{id}/start` — Reveal the question and start the server-side clock (idempotent)
 - `POST /qotd/{id}/answer` — Submit your one answer; returns correctness, time, points, streak
-- `GET /qotd/board?scope=friends|league&league_id=` — Today's results for that scope
-- `GET /qotd/leaderboard?scope=&league_id=&start_date=&end_date=` — Points table (defaults to this week)
-- `GET /qotd/stats` — Your played / correct / accuracy / streaks / points
+- `GET /qotd/board?scope=friends|league&league_id=&track=` — Today's results for that scope and track
+- `GET /qotd/leaderboard?scope=&league_id=&start_date=&end_date=&track=` — Points table (defaults to this week; omit `track` to combine all)
+- `GET /qotd/stats` — Your played / correct / accuracy / streaks / points, with a per-track breakdown
 - `POST /qotd/questions` — Submit a question (runs the fact-checker)
 - `GET /qotd/questions/mine` — Your submissions and their verification notes
 
 **QOTD admin:**
-- `GET /qotd/admin/questions?status=` — Review queue / bank / scheduled / rejected
+- `GET /qotd/admin/questions?status=&track=` — Review queue / bank / scheduled / rejected
 - `POST /qotd/admin/questions/{id}/review` — Override the AI verdict
 - `POST /qotd/admin/questions/{id}/reverify` — Re-run the fact-checker
 - `POST /qotd/admin/questions/{id}/schedule` — Put a verified question on a date
@@ -328,7 +346,7 @@ uv run python -m app.seed       # sample players + ~3 weeks of crossword results
 uv run python -m app.qotd_seed  # starter QOTD question bank
 ```
 
-`app.seed` adds sample players and ~3 weeks of daily results. `app.qotd_seed` inserts a set of
-hand-written trivia questions as pre-approved bank entries so QOTD has something to serve on day
-one; they're marked as seeded in their verification notes to distinguish them from AI-verified
-player submissions.
+`app.seed` adds sample players and ~3 weeks of daily results. `app.qotd_seed` inserts
+hand-written questions for every track as pre-approved bank entries so QOTD has something to
+serve on day one; they're marked as seeded in their verification notes to distinguish them from
+AI-verified player submissions.

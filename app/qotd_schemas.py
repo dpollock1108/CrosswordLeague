@@ -6,12 +6,34 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .qotd_tracks import DEFAULT_TRACK, is_track
+
 # Every question is multiple choice with exactly this many options — a fixed
 # shape keeps scoring, the UI, and the verifier prompt simple.
 QUESTION_CHOICE_COUNT = 4
 
 
+class TrackPublic(BaseModel):
+    """A daily question stream, as offered to the client."""
+
+    slug: str
+    name: str
+    description: str
+    example_prompt: str = ""
+    max_answer_seconds: int
+    # Speed tiers as [max_seconds | null, points], for the scoring explainer.
+    speed_tiers: List[List[Optional[int]]]
+    # The viewer's state on this track today.
+    status: str = "not_started"  # "answered" | "playing" | "not_started" | "no_question"
+    streak: int = 0
+
+
+class TracksResponse(BaseModel):
+    tracks: List[TrackPublic]
+
+
 class QuestionSubmit(BaseModel):
+    track: str = Field(default=DEFAULT_TRACK)
     prompt: str = Field(min_length=10, max_length=400)
     choices: List[str] = Field(min_length=QUESTION_CHOICE_COUNT, max_length=QUESTION_CHOICE_COUNT)
     answer_index: int = Field(ge=0, le=QUESTION_CHOICE_COUNT - 1)
@@ -22,6 +44,8 @@ class QuestionSubmit(BaseModel):
 
     @model_validator(mode="after")
     def _validate_choices(self) -> "QuestionSubmit":
+        if not is_track(self.track):
+            raise ValueError(f"Unknown track '{self.track}'.")
         cleaned = [c.strip() for c in self.choices]
         if any(not c for c in cleaned):
             raise ValueError("All answer choices must be filled in.")
@@ -45,6 +69,7 @@ class SubmissionPublic(BaseModel):
     """A question as its submitter sees it — answers included, it's theirs."""
 
     id: int
+    track: str
     prompt: str
     choices: List[str]
     answer_index: int
@@ -69,6 +94,7 @@ class QuestionPublic(BaseModel):
     """Today's question as a player sees it — no answer key."""
 
     id: int
+    track: str
     prompt: str
     choices: List[str]
     category: Optional[str] = None
@@ -79,6 +105,7 @@ class QuestionPublic(BaseModel):
 
 class AnswerPublic(BaseModel):
     question_id: int
+    track: str
     question_date: date
     started_at: datetime
     answered_at: Optional[datetime] = None
@@ -91,6 +118,7 @@ class AnswerPublic(BaseModel):
 
 
 class TodayResponse(BaseModel):
+    track: str = DEFAULT_TRACK
     question: Optional[QuestionPublic] = None
     attempt: Optional[AnswerPublic] = None
     # Answer key, revealed only once the player has answered (or can no longer).
@@ -104,6 +132,7 @@ class AnswerSubmit(BaseModel):
 
 
 class AnswerResult(BaseModel):
+    track: str
     is_correct: bool
     answer_index: int
     selected_index: int
@@ -127,6 +156,7 @@ class DailyBoardEntry(BaseModel):
 
 class DailyBoardResponse(BaseModel):
     question_date: date
+    track: str
     scope: str  # "friends" or "league"
     league_id: Optional[int] = None
     # Others' results stay hidden until you've played — no scrolling to the
@@ -153,9 +183,26 @@ class QotdLeaderboardEntry(BaseModel):
 class QotdLeaderboardResponse(BaseModel):
     start_date: date
     end_date: date
+    # None = every track combined.
+    track: Optional[str] = None
     scope: str
     league_id: Optional[int] = None
     entries: List[QotdLeaderboardEntry]
+
+
+class TrackStats(BaseModel):
+    """Per-track slice of a player's record."""
+
+    track: str
+    name: str
+    played: int
+    correct: int
+    accuracy: Optional[float] = None
+    average_seconds: Optional[float] = None
+    best_seconds: Optional[int] = None
+    total_points: int
+    current_streak: int
+    longest_streak: int
 
 
 class QotdStats(BaseModel):
@@ -169,6 +216,8 @@ class QotdStats(BaseModel):
     longest_streak: int
     submitted: int
     submissions_live: int
+    # Same numbers split by track; `current_streak` above is the best of these.
+    tracks: List[TrackStats] = Field(default_factory=list)
 
 
 class QuestionAdminPublic(SubmissionPublic):

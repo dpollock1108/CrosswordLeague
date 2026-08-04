@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import QotdBoard from "../components/QotdBoard";
+import { fetchQotdTracks } from "../api";
 import {
   approveLeagueRequest,
   deleteLeague,
@@ -17,7 +18,7 @@ import {
   updateLeagueVisibility,
 } from "../api";
 import type {
-  LeaderboardEntry, LeaderboardResponse, LeagueDetail as LeagueDetailType, WallOfShameResponse,
+  LeaderboardEntry, LeaderboardResponse, LeagueDetail as LeagueDetailType, QotdTrack, WallOfShameResponse,
 } from "../types";
 import ScoringConfigEditor from "../components/ScoringConfigEditor";
 
@@ -59,6 +60,14 @@ export default function LeagueDetail() {
   const [boardLoading, setBoardLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [qotdTracks, setQotdTracks] = useState<QotdTrack[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchQotdTracks(token)
+      .then((r) => setQotdTracks(r.tracks))
+      .catch(() => undefined);
+  }, [token]);
 
   const [mode, setMode] = useState<Mode>("week");
   const [offset, setOffset] = useState(0);
@@ -286,7 +295,7 @@ export default function LeagueDetail() {
           <Link to="/qotd" style={{ fontSize: 13 }}>Play today's question →</Link>
         </div>
         <div style={{ marginTop: 12 }}>
-          <QotdBoard scope="league" leagueId={league.id} />
+          <QotdBoard scope="league" leagueId={league.id} tracks={qotdTracks} />
         </div>
       </div>
 
