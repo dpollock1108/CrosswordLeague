@@ -24,6 +24,17 @@ interface CrosswordGridProps {
   onTabClue: (forward: boolean) => void;
 }
 
+export function cellSizeFor(size: number): number {
+  return size <= 5 ? 64 : 44;
+}
+
+// Rendered width of the grid box, so sibling UI (e.g. the current-clue banner)
+// can line up with it. Mirrors the inline styles below: 1px gaps between cells
+// and a 2px border on each side.
+export function gridPixelWidth(size: number): number {
+  return size * cellSizeFor(size) + (size - 1) + 4;
+}
+
 // Compute clue numbers for cells (standard crossword numbering)
 function computeCellNumbers(cells: GridCell[][], size: number): Map<string, number> {
   const numbers = new Map<string, number>();
@@ -154,7 +165,7 @@ export default function CrosswordGrid({
     }
   }, [selected, active]);
 
-  const cellSize = size <= 5 ? 64 : 44;
+  const cellSize = cellSizeFor(size);
   const fontSize = size <= 5 ? 24 : 18;
   const numberSize = size <= 5 ? 11 : 9;
 
