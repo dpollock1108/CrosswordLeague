@@ -31,9 +31,13 @@ from .qotd_schemas import (
     QuestionSubmit,
     SubmissionPublic,
     TodayResponse,
+    TrackPublic,
+    TrackStats,
+    TracksResponse,
     VerificationPublic,
 )
 from .qotd_scoring import apply_daily_bonus, clamp_seconds, current_streak, personal_points
+from .qotd_tracks import DEFAULT_TRACK, Track, all_tracks, get_track, is_track
 
 
 class QotdError(Exception):
@@ -61,6 +65,7 @@ def _verification(question: TriviaQuestion) -> VerificationPublic:
 def to_submission_public(question: TriviaQuestion) -> SubmissionPublic:
     return SubmissionPublic(
         id=question.id,
+        track=question.track,
         prompt=question.prompt,
         choices=_choices(question),
         answer_index=question.answer_index,
@@ -88,6 +93,7 @@ def to_question_public(session: Session, question: TriviaQuestion) -> QuestionPu
     author = session.get(User, question.submitted_by) if question.submitted_by else None
     return QuestionPublic(
         id=question.id,
+        track=question.track,
         prompt=question.prompt,
         choices=_choices(question),
         category=question.category,
@@ -115,6 +121,7 @@ def submit_question(session: Session, user: User, body: QuestionSubmit) -> Tuple
         choices=body.choices,
         answer_index=body.answer_index,
         explanation=body.explanation,
+        track=body.track,
     )
 
     status = {
@@ -124,6 +131,7 @@ def submit_question(session: Session, user: User, body: QuestionSubmit) -> Tuple
     }[result.verdict]
 
     question = TriviaQuestion(
+        track=body.track,
         prompt=body.prompt,
         choices_data=json.dumps(body.choices),
         answer_index=body.answer_index,
@@ -154,6 +162,7 @@ def reverify_question(session: Session, question: TriviaQuestion) -> TriviaQuest
         choices=_choices(question),
         answer_index=question.answer_index,
         explanation=question.explanation,
+        track=question.track,
     )
     question.status = {"approve": "approved", "reject": "rejected", "needs_review": "needs_review"}[
         result.verdict
@@ -194,10 +203,14 @@ def list_submissions(session: Session, user: User) -> List[SubmissionPublic]:
     return [to_submission_public(q) for q in rows]
 
 
-def list_questions_admin(session: Session, status: Optional[str] = None) -> List[QuestionAdminPublic]:
+def list_questions_admin(
+    session: Session, status: Optional[str] = None, track: Optional[str] = None
+) -> List[QuestionAdminPublic]:
     stmt = select(TriviaQuestion).order_by(TriviaQuestion.created_at.desc())  # type: ignore[union-attr]
     if status:
         stmt = stmt.where(TriviaQuestion.status == status)
+    if track:
+        stmt = stmt.where(TriviaQuestion.track == track)
     return [to_admin_public(session, q) for q in session.exec(stmt).all()]
 
 
@@ -206,9 +219,15 @@ def list_questions_admin(session: Session, status: Optional[str] = None) -> List
 # ---------------------------------------------------------------------------
 
 
-def question_for_date(session: Session, day: date) -> Optional[TriviaQuestion]:
+def question_for_date(
+    session: Session, day: date, track: str = DEFAULT_TRACK
+) -> Optional[TriviaQuestion]:
+    """The question live on ``day`` for one track. Tracks are independent."""
     return session.exec(
-        select(TriviaQuestion).where(TriviaQuestion.question_date == day)
+        select(TriviaQuestion).where(
+            TriviaQuestion.question_date == day,
+            TriviaQuestion.track == track,
+        )
     ).first()
 
 
@@ -217,9 +236,12 @@ def schedule_question(session: Session, question: TriviaQuestion, day: date) -> 
         raise QotdError("Only verified questions can be scheduled.")
     if day < date.today():
         raise QotdError("Questions can only be scheduled for today or a future date.")
-    clash = question_for_date(session, day)
+    clash = question_for_date(session, day, question.track)
     if clash and clash.id != question.id:
-        raise QotdError(f"Question #{clash.id} is already scheduled for {day}.")
+        raise QotdError(
+            f"Question #{clash.id} is already scheduled for {day} on the "
+            f"{get_track(question.track).name} track."
+        )
 
     question.question_date = day
     question.status = "scheduled"
@@ -243,16 +265,18 @@ def unschedule_question(session: Session, question: TriviaQuestion) -> TriviaQue
     return question
 
 
-def _auto_schedule(session: Session, day: date) -> Optional[TriviaQuestion]:
-    """Promote the oldest verified question from the bank onto ``day``.
+def _auto_schedule(session: Session, day: date, track: str) -> Optional[TriviaQuestion]:
+    """Promote the oldest verified question from that track's bank onto ``day``.
 
-    Keeps the game running without a daily admin action: as long as verified
-    questions exist, there is a question of the day.
+    Keeps the game running without a daily admin action: as long as a track has
+    verified questions banked, it has a question of the day. A track with an
+    empty bank simply has no question that day — it never borrows from another.
     """
     candidate = session.exec(
         select(TriviaQuestion)
         .where(
             TriviaQuestion.status == "approved",
+            TriviaQuestion.track == track,
             TriviaQuestion.question_date.is_(None),  # type: ignore[union-attr]
         )
         .order_by(TriviaQuestion.created_at)  # type: ignore[arg-type]
@@ -268,15 +292,17 @@ def _auto_schedule(session: Session, day: date) -> Optional[TriviaQuestion]:
     return candidate
 
 
-def live_question(session: Session, day: Optional[date] = None) -> Optional[TriviaQuestion]:
-    """The question for ``day``, auto-promoting one from the bank if needed."""
+def live_question(
+    session: Session, day: Optional[date] = None, track: str = DEFAULT_TRACK
+) -> Optional[TriviaQuestion]:
+    """The question for ``day`` on ``track``, promoting one from the bank if needed."""
     day = day or date.today()
-    existing = question_for_date(session, day)
+    existing = question_for_date(session, day, track)
     if existing:
         return existing
     if day != date.today():
         return None  # never backfill history
-    return _auto_schedule(session, day)
+    return _auto_schedule(session, day, track)
 
 
 # ---------------------------------------------------------------------------
@@ -299,26 +325,31 @@ def get_answer(session: Session, user_id: int, question_id: int) -> Optional[Tri
     ).first()
 
 
-def get_today(session: Session, user: User, day: Optional[date] = None) -> TodayResponse:
-    """Today's question plus this user's attempt state.
+def get_today(
+    session: Session, user: User, track: str = DEFAULT_TRACK, day: Optional[date] = None
+) -> TodayResponse:
+    """One track's question for the day, plus this user's attempt state.
 
     The answer key is withheld until the player has answered — the point of the
     game is one honest shot.
     """
+    if not is_track(track):
+        raise QotdError(f"Unknown track '{track}'.")
     day = day or date.today()
-    question = live_question(session, day)
+    question = live_question(session, day, track)
     if not question:
-        return TodayResponse(streak=streak_for(session, user.id, day))
+        return TodayResponse(track=track, streak=streak_for(session, user.id, day, track))
 
     attempt = get_answer(session, user.id, question.id)
     answered = bool(attempt and attempt.answered_at)
 
     return TodayResponse(
+        track=track,
         question=to_question_public(session, question),
         attempt=AnswerPublic.model_validate(attempt) if attempt else None,
         answer_index=question.answer_index if answered else None,
         explanation=question.explanation if answered else None,
-        streak=streak_for(session, user.id, day),
+        streak=streak_for(session, user.id, day, track),
     )
 
 
@@ -342,6 +373,7 @@ def start_question(session: Session, user: User, question_id: int) -> TriviaAnsw
     attempt = TriviaAnswer(
         user_id=user.id,
         question_id=question_id,
+        track=question.track,
         question_date=question.question_date,
         started_at=datetime.utcnow(),
     )
@@ -370,23 +402,27 @@ def answer_question(
         raise QotdError("You've already answered today's question.")
 
     now = datetime.utcnow()
-    seconds = clamp_seconds((now - attempt.started_at).total_seconds())
+    seconds = clamp_seconds((now - attempt.started_at).total_seconds(), question.track)
     is_correct = selected_index == question.answer_index
 
-    # The streak this answer extends: yesterday's run, plus today if correct.
-    prior = streak_for(session, user.id, question.question_date - timedelta(days=1))
+    # The streak this answer extends: yesterday's run on this track, plus today
+    # if correct. Streaks never cross tracks.
+    prior = streak_for(
+        session, user.id, question.question_date - timedelta(days=1), question.track
+    )
     streak = prior + 1 if is_correct else 0
 
     attempt.answered_at = now
     attempt.seconds = seconds
     attempt.selected_index = selected_index
     attempt.is_correct = is_correct
-    attempt.points = personal_points(is_correct, seconds, streak)
+    attempt.points = personal_points(is_correct, seconds, streak, question.track)
     session.add(attempt)
     session.commit()
     session.refresh(attempt)
 
     return AnswerResult(
+        track=question.track,
         is_correct=is_correct,
         answer_index=question.answer_index,
         selected_index=selected_index,
@@ -397,8 +433,13 @@ def answer_question(
     )
 
 
-def streak_for(session: Session, user_id: int, through: Optional[date] = None) -> int:
-    return current_streak(_answers_for_user(session, user_id), through or date.today())
+def streak_for(
+    session: Session,
+    user_id: int,
+    through: Optional[date] = None,
+    track: str = DEFAULT_TRACK,
+) -> int:
+    return current_streak(_answers_for_user(session, user_id), through or date.today(), track)
 
 
 # ---------------------------------------------------------------------------
@@ -422,18 +463,24 @@ def scope_user_ids(
 
 
 def _answers_in_range(
-    session: Session, user_ids: Iterable[int], start: date, end: date
+    session: Session,
+    user_ids: Iterable[int],
+    start: date,
+    end: date,
+    track: Optional[str] = None,
 ) -> List[TriviaAnswer]:
+    """Answers in a date window. ``track=None`` spans every track."""
     ids = list(user_ids)
     if not ids:
         return []
-    return session.exec(
-        select(TriviaAnswer).where(
-            TriviaAnswer.user_id.in_(ids),  # type: ignore[union-attr]
-            TriviaAnswer.question_date >= start,
-            TriviaAnswer.question_date <= end,
-        )
-    ).all()
+    stmt = select(TriviaAnswer).where(
+        TriviaAnswer.user_id.in_(ids),  # type: ignore[union-attr]
+        TriviaAnswer.question_date >= start,
+        TriviaAnswer.question_date <= end,
+    )
+    if track is not None:
+        stmt = stmt.where(TriviaAnswer.track == track)
+    return session.exec(stmt).all()
 
 
 def daily_board(
@@ -442,15 +489,19 @@ def daily_board(
     scope: str = "friends",
     league_id: Optional[int] = None,
     day: Optional[date] = None,
+    track: str = DEFAULT_TRACK,
 ) -> DailyBoardResponse:
     """Who in your scope has played today, how fast, and whether they got it.
 
-    Results stay hidden until you have answered — seeing that four friends all
-    picked choice B is a giveaway.
+    One board per track. Results stay hidden until you have answered that
+    track — seeing that four friends all picked choice B is a giveaway. Playing
+    the math question does not unlock the general board.
     """
+    if not is_track(track):
+        raise QotdError(f"Unknown track '{track}'.")
     day = day or date.today()
     user_ids = scope_user_ids(session, user, scope, league_id)
-    answers = {a.user_id: a for a in _answers_in_range(session, user_ids, day, day)}
+    answers = {a.user_id: a for a in _answers_in_range(session, user_ids, day, day, track)}
 
     mine = answers.get(user.id)
     revealed = bool(mine and mine.answered_at) or day < date.today()
@@ -491,6 +542,7 @@ def daily_board(
     entries.sort(key=sort_key)
     return DailyBoardResponse(
         question_date=day,
+        track=track,
         scope=scope,
         league_id=league_id,
         revealed=revealed,
@@ -505,8 +557,20 @@ def week_bounds(today: Optional[date] = None) -> Tuple[date, date]:
     return start, start + timedelta(days=6)
 
 
-def _longest_streak(answers: Sequence[TriviaAnswer]) -> int:
-    days = sorted({a.question_date for a in answers if a.is_correct and a.answered_at})
+def best_streak(
+    session: Session, user_id: int, through: Optional[date] = None, track: Optional[str] = None
+) -> int:
+    """Streak on one track, or the best across all tracks when ``track`` is None."""
+    answers = _answers_for_user(session, user_id)
+    day = through or date.today()
+    if track is not None:
+        return current_streak(answers, day, track)
+    return max((current_streak(answers, day, t.slug) for t in all_tracks()), default=0)
+
+
+def _longest_streak(answers: Sequence[TriviaAnswer], track: Optional[str] = None) -> int:
+    rows = answers if track is None else [a for a in answers if a.track == track]
+    days = sorted({a.question_date for a in rows if a.is_correct and a.answered_at})
     best = run = 0
     previous: Optional[date] = None
     for day in days:
@@ -523,12 +587,19 @@ def leaderboard(
     league_id: Optional[int] = None,
     start: Optional[date] = None,
     end: Optional[date] = None,
+    track: Optional[str] = None,
 ) -> QotdLeaderboardResponse:
-    """Points table over a date window (defaults to the current week)."""
+    """Points table over a date window (defaults to the current week).
+
+    ``track=None`` combines every track into one table — each track still
+    awards its own daily speed bonus, so tracks never cannibalize each other.
+    """
+    if track is not None and not is_track(track):
+        raise QotdError(f"Unknown track '{track}'.")
     if start is None or end is None:
         start, end = week_bounds()
     user_ids = scope_user_ids(session, user, scope, league_id)
-    answers = [a for a in _answers_in_range(session, user_ids, start, end) if a.answered_at]
+    answers = [a for a in _answers_in_range(session, user_ids, start, end, track) if a.answered_at]
 
     totals = apply_daily_bonus(answers)
     by_user: Dict[int, List[TriviaAnswer]] = {uid: [] for uid in user_ids}
@@ -555,36 +626,98 @@ def leaderboard(
                 accuracy=round(100 * correct / played, 1) if played else None,
                 average_seconds=round(sum(times) / len(times), 1) if times else None,
                 best_seconds=min(times) if times else None,
-                current_streak=streak_for(session, uid, min(end, date.today())),
+                current_streak=best_streak(session, uid, min(end, date.today()), track),
                 is_you=(uid == user.id),
             )
         )
 
     entries.sort(key=lambda e: (-e.total_points, -e.correct, e.average_seconds or 10**6))
     return QotdLeaderboardResponse(
-        start_date=start, end_date=end, scope=scope, league_id=league_id, entries=entries
+        start_date=start,
+        end_date=end,
+        track=track,
+        scope=scope,
+        league_id=league_id,
+        entries=entries,
     )
 
 
-def user_stats(session: Session, user: User) -> QotdStats:
-    answers = [a for a in _answers_for_user(session, user.id) if a.answered_at]
+def _slice(answers: Sequence[TriviaAnswer]) -> dict:
+    """Aggregate a set of answered attempts into the shared stat shape."""
     played = len(answers)
     correct = sum(1 for a in answers if a.is_correct)
     times = [a.seconds for a in answers if a.is_correct and a.seconds is not None]
+    return {
+        "played": played,
+        "correct": correct,
+        "accuracy": round(100 * correct / played, 1) if played else None,
+        "average_seconds": round(sum(times) / len(times), 1) if times else None,
+        "best_seconds": min(times) if times else None,
+        "total_points": sum(a.points for a in answers),
+    }
+
+
+def user_stats(session: Session, user: User) -> QotdStats:
+    """Lifetime record: totals across every track, plus a per-track breakdown."""
+    all_answers = _answers_for_user(session, user.id)
+    answers = [a for a in all_answers if a.answered_at]
 
     submissions = session.exec(
         select(TriviaQuestion).where(TriviaQuestion.submitted_by == user.id)
     ).all()
 
+    per_track: List[TrackStats] = []
+    for t in all_tracks():
+        rows = [a for a in answers if a.track == t.slug]
+        per_track.append(
+            TrackStats(
+                track=t.slug,
+                name=t.name,
+                current_streak=current_streak(all_answers, date.today(), t.slug),
+                longest_streak=_longest_streak(answers, t.slug),
+                **_slice(rows),
+            )
+        )
+
     return QotdStats(
-        played=played,
-        correct=correct,
-        accuracy=round(100 * correct / played, 1) if played else None,
-        average_seconds=round(sum(times) / len(times), 1) if times else None,
-        best_seconds=min(times) if times else None,
-        total_points=sum(a.points for a in answers),
-        current_streak=streak_for(session, user.id),
-        longest_streak=_longest_streak(answers),
+        **_slice(answers),
+        # Headline streak numbers are the best a player has going on any track.
+        current_streak=max((t.current_streak for t in per_track), default=0),
+        longest_streak=max((t.longest_streak for t in per_track), default=0),
         submitted=len(submissions),
         submissions_live=sum(1 for q in submissions if q.question_date is not None),
+        tracks=per_track,
+    )
+
+
+def list_tracks(session: Session, user: User, day: Optional[date] = None) -> TracksResponse:
+    """Every track with the viewer's state on it today — drives the play tabs."""
+    day = day or date.today()
+    out: List[TrackPublic] = []
+    for t in all_tracks():
+        question = live_question(session, day, t.slug)
+        if question is None:
+            status = "no_question"
+        else:
+            attempt = get_answer(session, user.id, question.id)
+            if attempt is None:
+                status = "not_started"
+            elif attempt.answered_at is None:
+                status = "playing"
+            else:
+                status = "answered"
+        out.append(_track_public(t, status, streak_for(session, user.id, day, t.slug)))
+    return TracksResponse(tracks=out)
+
+
+def _track_public(track: Track, status: str, streak: int) -> TrackPublic:
+    return TrackPublic(
+        slug=track.slug,
+        name=track.name,
+        description=track.description,
+        example_prompt=track.example_prompt,
+        max_answer_seconds=track.max_answer_seconds,
+        speed_tiers=[[max_s, pts] for (max_s, pts) in track.speed_tiers],
+        status=status,
+        streak=streak,
     )

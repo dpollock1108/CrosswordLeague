@@ -6,20 +6,21 @@ from app.models import TriviaAnswer
 from app.qotd_scoring import (
     CORRECT_BASE,
     FASTEST_BONUS,
-    MAX_ANSWER_SECONDS,
     apply_daily_bonus,
     clamp_seconds,
     current_streak,
+    max_answer_seconds,
     personal_points,
     speed_points,
     streak_bonus,
 )
 
 
-def _answer(user_id, day, correct, seconds, points):
+def _answer(user_id, day, correct, seconds, points, track="general"):
     return TriviaAnswer(
         user_id=user_id,
         question_id=1,
+        track=track,
         question_date=day,
         started_at=datetime.utcnow(),
         answered_at=datetime.utcnow(),
@@ -60,7 +61,7 @@ def test_streak_bonus_thresholds():
 def test_clamp_seconds():
     assert clamp_seconds(-3) == 0
     assert clamp_seconds(12.9) == 12
-    assert clamp_seconds(99999) == MAX_ANSWER_SECONDS
+    assert clamp_seconds(99999) == max_answer_seconds("general")
 
 
 def test_current_streak_breaks_on_miss_and_on_wrong_answer():
@@ -111,6 +112,6 @@ def test_daily_bonus_is_shared_on_a_tie_and_summed_across_days():
 def test_unanswered_attempts_are_ignored():
     day = date(2026, 8, 4)
     started_only = TriviaAnswer(
-        user_id=9, question_id=1, question_date=day, started_at=datetime.utcnow()
+        user_id=9, question_id=1, track="general", question_date=day, started_at=datetime.utcnow()
     )
     assert apply_daily_bonus([started_only]) == {}

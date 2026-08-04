@@ -24,6 +24,7 @@ import type {
   QotdSubmissionResult,
   QotdSubmitInput,
   QotdToday,
+  QotdTracksResponse,
   ScreenshotParseResponse,
   SolveAttempt,
   SubmitResult,
@@ -587,8 +588,13 @@ function scopeQuery(scope: QotdScope, leagueId?: number | null): string {
   return search.toString();
 }
 
-export async function fetchQotdToday(jwt: string): Promise<QotdToday> {
-  return http<QotdToday>("/qotd/today", { headers: { Authorization: `Bearer ${jwt}` } });
+export async function fetchQotdTracks(jwt: string): Promise<QotdTracksResponse> {
+  return http<QotdTracksResponse>("/qotd/tracks", { headers: { Authorization: `Bearer ${jwt}` } });
+}
+
+export async function fetchQotdToday(jwt: string, track?: string): Promise<QotdToday> {
+  const qs = track ? `?${new URLSearchParams({ track }).toString()}` : "";
+  return http<QotdToday>(`/qotd/today${qs}`, { headers: { Authorization: `Bearer ${jwt}` } });
 }
 
 export async function startQotd(jwt: string, questionId: number): Promise<void> {
@@ -614,8 +620,11 @@ export async function fetchQotdBoard(
   jwt: string,
   scope: QotdScope = "friends",
   leagueId?: number | null,
+  track?: string,
 ): Promise<QotdBoard> {
-  return http<QotdBoard>(`/qotd/board?${scopeQuery(scope, leagueId)}`, {
+  const search = new URLSearchParams(scopeQuery(scope, leagueId));
+  if (track) search.set("track", track);
+  return http<QotdBoard>(`/qotd/board?${search.toString()}`, {
     headers: { Authorization: `Bearer ${jwt}` },
   });
 }
@@ -625,10 +634,13 @@ export async function fetchQotdLeaderboard(
   scope: QotdScope = "friends",
   leagueId?: number | null,
   range?: { startDate?: string; endDate?: string },
+  /** Omit to combine every track. */
+  track?: string | null,
 ): Promise<QotdLeaderboard> {
   const search = new URLSearchParams(scopeQuery(scope, leagueId));
   if (range?.startDate) search.set("start_date", range.startDate);
   if (range?.endDate) search.set("end_date", range.endDate);
+  if (track) search.set("track", track);
   return http<QotdLeaderboard>(`/qotd/leaderboard?${search.toString()}`, {
     headers: { Authorization: `Bearer ${jwt}` },
   });
@@ -660,9 +672,13 @@ export async function fetchMySubmissions(jwt: string): Promise<QotdSubmission[]>
 export async function fetchQotdAdminQuestions(
   jwt: string,
   status?: string,
+  track?: string,
 ): Promise<QotdAdminQuestion[]> {
-  const qs = status ? `?${new URLSearchParams({ status }).toString()}` : "";
-  return http<QotdAdminQuestion[]>(`/qotd/admin/questions${qs}`, {
+  const search = new URLSearchParams();
+  if (status) search.set("status", status);
+  if (track) search.set("track", track);
+  const qs = search.toString();
+  return http<QotdAdminQuestion[]>(`/qotd/admin/questions${qs ? `?${qs}` : ""}`, {
     headers: { Authorization: `Bearer ${jwt}` },
   });
 }

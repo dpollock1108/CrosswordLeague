@@ -269,8 +269,26 @@ export type FriendRequestResult = {
 
 export type QotdScope = "friends" | "league";
 
+/** A daily question stream. Slugs come from the backend registry (qotd_tracks.py). */
+export type QotdTrack = {
+  slug: string;
+  name: string;
+  description: string;
+  example_prompt: string;
+  max_answer_seconds: number;
+  /** [max_seconds | null, points] pairs. */
+  speed_tiers: Array<Array<number | null>>;
+  status: "answered" | "playing" | "not_started" | "no_question";
+  streak: number;
+};
+
+export type QotdTracksResponse = {
+  tracks: QotdTrack[];
+};
+
 export type QotdQuestion = {
   id: number;
+  track: string;
   prompt: string;
   choices: string[];
   category?: string | null;
@@ -281,6 +299,7 @@ export type QotdQuestion = {
 
 export type QotdAttempt = {
   question_id: number;
+  track: string;
   question_date: string;
   started_at: string;
   answered_at?: string | null;
@@ -291,6 +310,7 @@ export type QotdAttempt = {
 };
 
 export type QotdToday = {
+  track: string;
   question?: QotdQuestion | null;
   attempt?: QotdAttempt | null;
   answer_index?: number | null;
@@ -299,6 +319,7 @@ export type QotdToday = {
 };
 
 export type QotdAnswerResult = {
+  track: string;
   is_correct: boolean;
   answer_index: number;
   selected_index: number;
@@ -322,6 +343,7 @@ export type QotdBoardEntry = {
 
 export type QotdBoard = {
   question_date: string;
+  track: string;
   scope: QotdScope;
   league_id?: number | null;
   revealed: boolean;
@@ -346,9 +368,24 @@ export type QotdLeaderboardEntry = {
 export type QotdLeaderboard = {
   start_date: string;
   end_date: string;
+  /** null = every track combined. */
+  track?: string | null;
   scope: QotdScope;
   league_id?: number | null;
   entries: QotdLeaderboardEntry[];
+};
+
+export type QotdTrackStats = {
+  track: string;
+  name: string;
+  played: number;
+  correct: number;
+  accuracy?: number | null;
+  average_seconds?: number | null;
+  best_seconds?: number | null;
+  total_points: number;
+  current_streak: number;
+  longest_streak: number;
 };
 
 export type QotdStats = {
@@ -362,6 +399,7 @@ export type QotdStats = {
   longest_streak: number;
   submitted: number;
   submissions_live: number;
+  tracks: QotdTrackStats[];
 };
 
 export type QotdVerification = {
@@ -373,6 +411,7 @@ export type QotdVerification = {
 
 export type QotdSubmission = {
   id: number;
+  track: string;
   prompt: string;
   choices: string[];
   answer_index: number;
@@ -397,6 +436,7 @@ export type QotdSubmissionResult = {
 };
 
 export type QotdSubmitInput = {
+  track: string;
   prompt: string;
   choices: string[];
   answer_index: number;

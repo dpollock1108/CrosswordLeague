@@ -25,7 +25,9 @@ from .models import TriviaQuestion
 SEED_NOTE = "Seeded starter question (hand-written, not AI-verified)."
 
 # (prompt, choices, answer_index, explanation, category, difficulty)
-STARTER_QUESTIONS: List[Tuple[str, List[str], int, str, str, str]] = [
+StarterQuestion = Tuple[str, List[str], int, str, str, str]
+
+STARTER_QUESTIONS: List[StarterQuestion] = [
     (
         "Which planet in our solar system has the shortest day?",
         ["Mercury", "Jupiter", "Mars", "Venus"],
@@ -141,10 +143,84 @@ STARTER_QUESTIONS: List[Tuple[str, List[str], int, str, str, str]] = [
 ]
 
 
+# Math track — worked problems rather than recall. The math track's slower
+# speed tiers (see qotd_tracks.MATH) assume this kind of question.
+MATH_QUESTIONS: List[StarterQuestion] = [
+    (
+        "A train covers 60 km in 45 minutes. What is its average speed in km/h?",
+        ["45 km/h", "75 km/h", "80 km/h", "90 km/h"],
+        2,
+        "45 minutes is 0.75 h, and 60 / 0.75 = 80 km/h.",
+        "Rates",
+        "easy",
+    ),
+    (
+        "What is 15% of 240?",
+        ["30", "36", "38", "42"],
+        1,
+        "10% is 24 and 5% is 12, so 15% is 36.",
+        "Arithmetic",
+        "easy",
+    ),
+    (
+        "A rectangle has a perimeter of 36 cm and is twice as long as it is wide. What is its area?",
+        ["48 cm²", "64 cm²", "72 cm²", "81 cm²"],
+        2,
+        "Width 6 and length 12 give a perimeter of 36, so the area is 6 × 12 = 72 cm².",
+        "Geometry",
+        "medium",
+    ),
+    (
+        "If 3x + 7 = 25, what is the value of 5x?",
+        ["24", "30", "36", "40"],
+        1,
+        "3x = 18 so x = 6, and 5x = 30.",
+        "Algebra",
+        "easy",
+    ),
+    (
+        "Two fair six-sided dice are rolled. What is the probability the total is 7?",
+        ["1/12", "1/9", "1/6", "1/4"],
+        2,
+        "Six of the 36 equally likely outcomes total 7, and 6/36 = 1/6.",
+        "Probability",
+        "medium",
+    ),
+    (
+        "A jacket costs 80 after a 20% discount. What was the original price?",
+        ["96", "100", "104", "120"],
+        1,
+        "80 is 80% of the original, and 80 / 0.8 = 100.",
+        "Percentages",
+        "medium",
+    ),
+    (
+        "What is the sum of the first 20 positive integers?",
+        ["190", "200", "210", "220"],
+        2,
+        "n(n+1)/2 with n = 20 gives 20 × 21 / 2 = 210.",
+        "Sequences",
+        "medium",
+    ),
+    (
+        "A car travels 120 km at 60 km/h, then 120 km at 40 km/h. What is the average speed for the trip?",
+        ["45 km/h", "48 km/h", "50 km/h", "52 km/h"],
+        1,
+        "The trip takes 2 + 3 = 5 hours for 240 km, so 240 / 5 = 48 km/h — not the mean of the two speeds.",
+        "Rates",
+        "hard",
+    ),
+]
+
+
 def seed_questions(session: Session) -> int:
     """Insert any starter questions not already present. Returns the count added."""
     added = 0
-    for prompt, choices, answer_index, explanation, category, difficulty in STARTER_QUESTIONS:
+    tracked: List[Tuple[str, StarterQuestion]] = [
+        *(("general", q) for q in STARTER_QUESTIONS),
+        *(("math", q) for q in MATH_QUESTIONS),
+    ]
+    for track, (prompt, choices, answer_index, explanation, category, difficulty) in tracked:
         existing: Optional[TriviaQuestion] = session.exec(
             select(TriviaQuestion).where(TriviaQuestion.prompt == prompt)
         ).first()
@@ -152,6 +228,7 @@ def seed_questions(session: Session) -> int:
             continue
         session.add(
             TriviaQuestion(
+                track=track,
                 prompt=prompt,
                 choices_data=json.dumps(choices),
                 answer_index=answer_index,

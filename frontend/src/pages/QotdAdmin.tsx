@@ -3,12 +3,13 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   deleteQotdQuestion,
   fetchQotdAdminQuestions,
+  fetchQotdTracks,
   reverifyQotdQuestion,
   reviewQotdQuestion,
   scheduleQotdQuestion,
   unscheduleQotdQuestion,
 } from "../api";
-import type { QotdAdminQuestion } from "../types";
+import type { QotdAdminQuestion, QotdTrack } from "../types";
 
 const CHOICE_LABELS = ["A", "B", "C", "D"];
 
@@ -34,6 +35,8 @@ const secondaryButton = {
 export default function QotdAdmin() {
   const { token, user } = useAuth();
   const [filter, setFilter] = useState<string>("needs_review");
+  const [trackFilter, setTrackFilter] = useState<string>("");
+  const [tracks, setTracks] = useState<QotdTrack[]>([]);
   const [questions, setQuestions] = useState<QotdAdminQuestion[]>([]);
   const [dates, setDates] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
@@ -43,16 +46,25 @@ export default function QotdAdmin() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      setQuestions(await fetchQotdAdminQuestions(token, filter || undefined));
+      setQuestions(
+        await fetchQotdAdminQuestions(token, filter || undefined, trackFilter || undefined),
+      );
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load questions");
     }
-  }, [token, filter]);
+  }, [token, filter, trackFilter]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchQotdTracks(token)
+      .then((r) => setTracks(r.tracks))
+      .catch(() => undefined);
+  }, [token]);
 
   const run = async (fn: () => Promise<unknown>, message: string) => {
     setBusy(true);
@@ -77,11 +89,26 @@ export default function QotdAdmin() {
         <h2 style={{ marginBottom: 4 }}>QOTD questions</h2>
         <p className="muted" style={{ marginTop: 0 }}>
           Player submissions are auto-verified by AI. Anything it wasn't confident about waits here.
-          Verified questions are auto-promoted from the bank when a day has nothing scheduled.
+          Each track keeps its own bank — a verified question is auto-promoted when its track has
+          nothing scheduled for the day, and tracks never borrow from each other.
         </p>
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        {tracks.length > 1 && (
+          <select
+            value={trackFilter}
+            onChange={(e) => setTrackFilter(e.target.value)}
+            style={{ padding: "6px 10px", fontSize: 13 }}
+          >
+            <option value="">All tracks</option>
+            {tracks.map((t) => (
+              <option key={t.slug} value={t.slug}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
         {FILTERS.map((f) => (
           <button
             key={f.value}
@@ -116,7 +143,8 @@ export default function QotdAdmin() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <strong style={{ flex: "1 1 320px", fontSize: 16 }}>{q.prompt}</strong>
               <span className="muted" style={{ fontSize: 13 }}>
-                #{q.id} · {q.submitted_by_handle ? `@${q.submitted_by_handle}` : "seed"} · {q.status}
+                #{q.id} · {tracks.find((t) => t.slug === q.track)?.name ?? q.track} ·{" "}
+                {q.submitted_by_handle ? `@${q.submitted_by_handle}` : "seed"} · {q.status}
               </span>
             </div>
 

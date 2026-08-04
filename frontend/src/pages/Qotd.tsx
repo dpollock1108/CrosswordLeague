@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { answerQotd, fetchQotdStats, fetchQotdToday, listLeagues, startQotd } from "../api";
+import {
+  answerQotd,
+  fetchQotdStats,
+  fetchQotdToday,
+  fetchQotdTracks,
+  listLeagues,
+  startQotd,
+} from "../api";
 import QotdBoard, { formatSeconds } from "../components/QotdBoard";
-import type { LeaguePublic, QotdAnswerResult, QotdScope, QotdStats, QotdToday } from "../types";
+import type {
+  LeaguePublic,
+  QotdAnswerResult,
+  QotdScope,
+  QotdStats,
+  QotdToday,
+  QotdTrack,
+} from "../types";
 
 /** Server timestamps are naive UTC; mark them as such before parsing. */
 function parseUtc(iso: string): number {
@@ -14,6 +28,8 @@ const CHOICE_LABELS = ["A", "B", "C", "D"];
 
 export default function Qotd() {
   const { token, user } = useAuth();
+  const [tracks, setTracks] = useState<QotdTrack[]>([]);
+  const [activeTrack, setActiveTrack] = useState<string | null>(null);
   const [today, setToday] = useState<QotdToday | null>(null);
   const [stats, setStats] = useState<QotdStats | null>(null);
   const [leagues, setLeagues] = useState<LeaguePublic[]>([]);
@@ -32,18 +48,41 @@ export default function Qotd() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
+  const loadShell = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
     try {
-      const [t, s, l] = await Promise.all([
-        fetchQotdToday(token),
+      const [tr, s, l] = await Promise.all([
+        fetchQotdTracks(token),
         fetchQotdStats(token),
         listLeagues(token).catch(() => [] as LeaguePublic[]),
       ]);
-      setToday(t);
+      setTracks(tr.tracks);
       setStats(s);
       setLeagues(l.filter((league) => league.membership_status !== "pending"));
+      // Open on the first track still waiting to be played, so a returning
+      // player lands on what they have left rather than on a finished board.
+      setActiveTrack((current) => {
+        if (current) return current;
+        const unplayed = tr.tracks.find((t) => t.status === "not_started" || t.status === "playing");
+        return (unplayed ?? tr.tracks[0])?.slug ?? null;
+      });
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load today's questions");
+    }
+  }, [token]);
+
+  const loadTrack = useCallback(async () => {
+    if (!token || !activeTrack) return;
+    setLoading(true);
+    // Reset per-track answer state so switching tabs never shows a stale result.
+    setResult(null);
+    setSelected(null);
+    setRevealed(false);
+    setElapsed(0);
+    try {
+      const t = await fetchQotdToday(token, activeTrack);
+      setToday(t);
       // Resume a question that was revealed but never answered — the server's
       // clock has been running the whole time.
       if (t.attempt && !t.attempt.answered_at) {
@@ -56,11 +95,15 @@ export default function Qotd() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, activeTrack]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadShell();
+  }, [loadShell]);
+
+  useEffect(() => {
+    loadTrack();
+  }, [loadTrack]);
 
   const answered = Boolean(today?.attempt?.answered_at) || Boolean(result);
 
@@ -100,7 +143,7 @@ export default function Qotd() {
       setResult(res);
       setElapsed(res.seconds);
       setBoardKey((k) => k + 1);
-      fetchQotdStats(token).then(setStats).catch(() => undefined);
+      loadShell();
       setError(null);
     } catch (e) {
       setSelected(null);
@@ -113,6 +156,8 @@ export default function Qotd() {
   if (!user) return <p className="muted">Sign in to play the question of the day.</p>;
   if (loading) return <p className="muted">Loading…</p>;
 
+  const trackMeta = tracks.find((t) => t.slug === activeTrack) ?? null;
+  const trackStats = stats?.tracks.find((t) => t.track === activeTrack) ?? null;
   const question = today?.question;
   // After a reload, the stored attempt carries the result the state doesn't.
   const answerIndex = result?.answer_index ?? today?.answer_index ?? null;
@@ -121,6 +166,9 @@ export default function Qotd() {
   const shownSeconds = result?.seconds ?? today?.attempt?.seconds ?? elapsed;
   const points = result?.points ?? today?.attempt?.points ?? 0;
   const streak = result?.streak ?? today?.streak ?? 0;
+  // Fastest tier for this track, so the reveal panel can set expectations —
+  // 10s on general, 30s on math.
+  const topTierSeconds = trackMeta?.speed_tiers?.[0]?.[0] ?? null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -137,33 +185,70 @@ export default function Qotd() {
         </div>
       )}
 
-      {stats && (
+      {tracks.length > 1 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {tracks.map((t) => {
+            const active = t.slug === activeTrack;
+            const marker =
+              t.status === "answered" ? "✓" : t.status === "no_question" ? "–" : "•";
+            return (
+              <button
+                key={t.slug}
+                onClick={() => setActiveTrack(t.slug)}
+                title={t.description}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 14,
+                  background: active ? undefined : "#e5e7eb",
+                  color: active ? undefined : "#374151",
+                }}
+              >
+                {t.name} <span style={{ opacity: 0.75 }}>{marker}</span>
+                {t.streak > 0 && (
+                  <span style={{ marginLeft: 6, opacity: 0.9 }}>{t.streak}🔥</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {trackStats && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <span className="badge">🔥 {stats.current_streak} day streak</span>
+          <span className="badge">🔥 {trackStats.current_streak} day {trackMeta?.name ?? ""} streak</span>
           <span className="badge">
-            {stats.accuracy != null ? `${stats.accuracy}% correct` : "No answers yet"}
+            {trackStats.accuracy != null ? `${trackStats.accuracy}% correct` : "No answers yet"}
           </span>
           <span className="badge">
-            {stats.best_seconds != null ? `Best ${formatSeconds(stats.best_seconds)}` : "No time yet"}
+            {trackStats.best_seconds != null
+              ? `Best ${formatSeconds(trackStats.best_seconds)}`
+              : "No time yet"}
           </span>
-          <span className="badge">{stats.total_points} lifetime points</span>
+          <span className="badge">{stats?.total_points ?? 0} lifetime points (all tracks)</span>
         </div>
       )}
 
       <div className="card">
         {!question ? (
           <div>
-            <h3 style={{ marginBottom: 6 }}>No question today</h3>
+            <h3 style={{ marginBottom: 6 }}>No {trackMeta?.name ?? ""} question today</h3>
             <p className="muted" style={{ marginTop: 0 }}>
-              The question bank is empty. <Link to="/qotd/submit">Submit one</Link> — it gets
-              fact-checked automatically and can go live on an upcoming day.
+              That track's question bank is empty — tracks never borrow from each other.{" "}
+              <Link to="/qotd/submit">Submit one</Link> — it gets fact-checked automatically and can
+              go live on an upcoming day.
             </p>
           </div>
         ) : !revealed && !answered ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
-            <h3 style={{ marginBottom: 0 }}>Today's question is ready</h3>
+            <h3 style={{ marginBottom: 0 }}>
+              Today's {trackMeta?.name ?? ""} question is ready
+            </h3>
+            <p className="muted" style={{ margin: 0 }}>
+              {trackMeta?.description}
+            </p>
             <p className="muted" style={{ margin: 0 }}>
               Your clock starts the moment you reveal it, so get comfortable first.
+              {topTierSeconds != null ? ` Top points inside ${topTierSeconds}s.` : ""}
               {question.category ? ` Category: ${question.category}.` : ""}
             </p>
             <button onClick={handleReveal} disabled={busy}>
@@ -310,7 +395,13 @@ export default function Qotd() {
             )}
           </div>
         </div>
-        <QotdBoard scope={scope} leagueId={leagueId} refreshKey={boardKey} />
+        <QotdBoard
+          scope={scope}
+          leagueId={leagueId}
+          track={activeTrack}
+          tracks={tracks}
+          refreshKey={boardKey}
+        />
       </div>
 
       <p className="muted" style={{ fontSize: 13 }}>
