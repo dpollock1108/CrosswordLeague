@@ -49,13 +49,13 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 # Cloud SQL connection name – find with: gcloud sql instances describe crossword-db
 CLOUD_SQL_CONNECTION="${CLOUD_SQL_CONNECTION:?Set CLOUD_SQL_CONNECTION (project:region:instance)}"
 
+# Public, build-time values. GOOGLE_CLIENT_ID is required or sign-in returns 503.
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID (…apps.googleusercontent.com)}"
+ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-*}"
+
 # ── Derived values ────────────────────────────────────────────────────────────
 AR_HOST="${GCP_REGION}-docker.pkg.dev"
 IMAGE_URI="${AR_HOST}/${GCP_PROJECT}/${AR_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
-
-# The Cloud Run service URL (set after first deploy; used to build the frontend)
-# Override with CLOUD_RUN_URL in .env.deploy once you have it.
-CLOUD_RUN_URL="${CLOUD_RUN_URL:-}"
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
@@ -69,9 +69,12 @@ echo ""
 
 # ── Step 1: Build & push Docker image ────────────────────────────────────────
 echo "▶ Building Docker image (platform linux/amd64)..."
+# VITE_API_BASE stays empty: this same container serves the SPA, so the frontend
+# talks to its own origin and there is no chicken-and-egg with the service URL.
 docker buildx build \
   --platform linux/amd64 \
-  --build-arg "VITE_API_BASE=${CLOUD_RUN_URL}" \
+  --build-arg "VITE_API_BASE=" \
+  --build-arg "VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
   -t "${IMAGE_URI}" \
   "${ROOT_DIR}" \
   --push
@@ -94,8 +97,8 @@ gcloud run deploy "${SERVICE_NAME}" \
   --min-instances=0 \
   --max-instances=3 \
   --add-cloudsql-instances="${CLOUD_SQL_CONNECTION}" \
-  --set-secrets="ADMIN_TOKEN=ADMIN_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
-  --set-env-vars="DATABASE_URL=postgresql+psycopg://crossword:${DB_PASSWORD}@/crossword_league?host=/cloudsql/${CLOUD_SQL_CONNECTION}"
+  --set-secrets="DATABASE_URL=DATABASE_URL:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,JWT_SECRET=JWT_SECRET:latest" \
+  --set-env-vars="GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID},ALLOWED_ORIGINS=${ALLOWED_ORIGINS},DISABLE_ADMIN_AUTH=false"
 
 echo ""
 echo "✓ Cloud Run deploy complete."
@@ -112,9 +115,8 @@ echo "║  Deploy complete!                            ║"
 echo "╚══════════════════════════════════════════════╝"
 echo "  API + App URL: ${DEPLOYED_URL}"
 echo ""
-echo "  If this is your first deploy, add this to .env.deploy:"
-echo "    CLOUD_RUN_URL=${DEPLOYED_URL}"
-echo "  Then re-run this script to rebuild the frontend with the correct API URL."
+echo "  Add this URL to the Google OAuth client's Authorized JavaScript origins,"
+echo "  and set ALLOWED_ORIGINS to it, or sign-in will fail."
 echo ""
 echo "  To migrate your SQLite data to Cloud SQL, run:"
 echo "    uv run python scripts/migrate_sqlite_to_pg.py \\"

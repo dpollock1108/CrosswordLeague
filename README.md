@@ -204,21 +204,70 @@ The `/play` page features an interactive crossword grid:
 
 ### Deployment
 
-The Dockerfile builds both frontend and backend into a single image. Alembic migrations run on startup.
+Target is **Google Cloud Run**, with Cloud SQL (Postgres) and Secret Manager. The
+Dockerfile builds the frontend and backend into a single image, so the API and
+the SPA are served from one origin.
+
+#### One-time setup
 
 ```bash
-docker build -t crossword-league .
+GCP_PROJECT=your-project GITHUB_REPO=dpollock1108/CrosswordLeague ./scripts/setup-github-deploy.sh
 ```
 
-**Required env vars for production:**
-- `DATABASE_URL` (PostgreSQL connection string)
-- `ADMIN_TOKEN`
-- `GOOGLE_CLIENT_ID`
-- `JWT_SECRET` (generate a strong random value)
-- `ANTHROPIC_API_KEY`
-- `ALLOWED_ORIGINS` (your frontend domain)
+This enables the APIs, creates the Artifact Registry repo, creates a deploy
+service account, wires up Workload Identity Federation so GitHub Actions can
+authenticate without a long-lived key, and creates the Secret Manager secrets.
+It is idempotent and prints the GitHub secrets/variables to add at the end.
 
-Deploy scripts exist for both AWS (`scripts/deploy.sh`) and GCP Cloud Run (`scripts/deploy-gcp.sh`).
+You must also create the Cloud SQL instance yourself (see the header comment in
+`scripts/deploy-gcp.sh`) and add your production URL to the Google OAuth client's
+**Authorized JavaScript origins**, or sign-in will fail.
+
+#### Continuous deployment
+
+`.github/workflows/deploy.yml` runs on every push and PR:
+
+1. **test** — `pytest`, `tsc --noEmit`, and `vite build`.
+2. **deploy** — only on `main`, only after tests pass. Builds the image tagged
+   with the commit SHA, pushes it, and deploys to Cloud Run.
+
+Because images are tagged by SHA, rolling back is redeploying an older tag
+rather than rebuilding. `workflow_dispatch` re-deploys current `main` by hand.
+
+`scripts/deploy-gcp.sh` does the same thing from your laptop and sets the same
+env vars and secrets, so a manual deploy will not clobber the service config.
+
+#### Configuration
+
+Secrets live in Secret Manager and are referenced by name — none of them pass
+through GitHub:
+
+| Secret | Notes |
+| --- | --- |
+| `DATABASE_URL` | Full Postgres URL including the password |
+| `JWT_SECRET` | Session signing key. The app's default is `dev-secret-change-me`; with that in place anyone can forge a session for any account |
+| `ADMIN_TOKEN` | Legacy admin auth |
+| `ANTHROPIC_API_KEY` | Clue generation and screenshot parsing |
+
+Non-secret settings are Cloud Run env vars, from GitHub Actions **variables**:
+`GOOGLE_CLIENT_ID`, `ALLOWED_ORIGINS` (defaults to `*` if unset — set it to your
+real domain), and `DISABLE_ADMIN_AUTH`, which the deploy pins to `false`.
+
+`VITE_API_BASE` and `VITE_GOOGLE_CLIENT_ID` are inlined by Vite at **build**
+time, so they are `--build-arg`s rather than runtime env vars. `VITE_API_BASE`
+is deliberately empty in production so the SPA talks to its own origin.
+
+#### Migrations
+
+The container runs `alembic upgrade head` on startup, so migrations apply
+automatically on deploy. Two things follow from that:
+
+- A failed migration fails the new revision's startup, and Cloud Run keeps
+  serving the previous revision. A *successful but wrong* migration reaches
+  production with no gate.
+- Every cold-started instance runs it, so a scale-up can run migrations
+  concurrently. Alembic takes no lock by default. Deploy schema changes when
+  traffic is low, or move migrations to a dedicated pre-deploy step.
 
 ### Seed Data
 

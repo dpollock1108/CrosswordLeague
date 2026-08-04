@@ -18,6 +18,8 @@ frontend/.vite/
 .DS_Store
 .claude/
 
-uv.lock
+# uv.lock is deliberately NOT ignored. This is a deployed application, not a
+# library: the container and CI both install from the lock file, so it has to be
+# in the repo for a fresh clone to build reproducibly.
 .python-version
 crossword.db

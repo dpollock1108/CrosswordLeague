@@ -1,0 +1,131 @@
+name: CI / Deploy
+
+# Tests run on every PR and every push to main. Deploys happen only after those
+# tests pass, and only for pushes to main — a PR never reaches production.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # manual re-deploy of whatever main currently is
+
+# Two pushes to main in quick succession would otherwise race to deploy and the
+# older image could land last. Queue them instead; don't cancel, because a
+# half-finished deploy is worse than a slow one.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_REGION: us-central1
+  CLOUD_RUN_SERVICE: crossword-league
+  AR_REPO: crossword-league
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.2"
+          enable-cache: true
+
+      # --frozen fails if uv.lock is stale relative to pyproject.toml, which is
+      # what keeps the lock (and therefore the production image) honest.
+      - name: Install Python dependencies
+        run: uv sync --frozen
+
+      - name: Run backend tests
+        run: uv run pytest -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # required to mint the OIDC token for Workload Identity
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keyless auth: GitHub mints a short-lived OIDC token that GCP trades for
+      # a service-account credential. No long-lived JSON key lives in this repo.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      # Tagged with the commit SHA, not :latest, so every running revision is
+      # traceable to a commit and a rollback is just re-deploying an older tag.
+      - name: Build and push image
+        run: |
+          IMAGE="${GCP_REGION}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${AR_REPO}/${CLOUD_RUN_SERVICE}:${GITHUB_SHA}"
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg VITE_API_BASE="" \
+            --build-arg VITE_GOOGLE_CLIENT_ID="${{ vars.GOOGLE_CLIENT_ID }}" \
+            --tag "${IMAGE}" \
+            --push \
+            .
+
+      # Every value that is actually sensitive lives in Secret Manager and is
+      # referenced by name — none of them pass through GitHub. DISABLE_ADMIN_AUTH
+      # is pinned to false rather than merely omitted, so a stale value on an
+      # earlier revision cannot survive a deploy.
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${CLOUD_RUN_SERVICE}" \
+            --image="${IMAGE}" \
+            --region="${GCP_REGION}" \
+            --project="${{ vars.GCP_PROJECT }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --memory=512Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --add-cloudsql-instances="${{ vars.CLOUD_SQL_CONNECTION }}" \
+            --set-secrets="DATABASE_URL=DATABASE_URL:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,JWT_SECRET=JWT_SECRET:latest" \
+            --set-env-vars="GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }},ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }},DISABLE_ADMIN_AUTH=false"
+
+      - name: Report deployed URL
+        run: |
+          URL=$(gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+            --region="${GCP_REGION}" \
+            --project="${{ vars.GCP_PROJECT }}" \
+            --format="value(status.url)")
+          echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${IMAGE}\`" >> "$GITHUB_STEP_SUMMARY"

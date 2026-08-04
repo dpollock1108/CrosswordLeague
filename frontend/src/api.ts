@@ -19,7 +19,14 @@ import type {
   WallOfShameResponse,
 } from "./types";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+// In production the API and the built SPA are the same Cloud Run service, so
+// requests must be same-origin — an empty base yields relative URLs. The dev
+// server runs on a different port than the API, so it needs an absolute one.
+// `??` rather than `||` on purpose: an explicitly empty VITE_API_BASE means
+// "same origin" and must not fall through to a localhost default, which is
+// what previously shipped to production.
+const API_BASE =
+  import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? "http://localhost:8001" : "");
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
