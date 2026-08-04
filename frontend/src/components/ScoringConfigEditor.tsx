@@ -34,7 +34,7 @@ function fromForm(form: Form): LeagueScoringConfig {
 const inputStyle = {
   padding: "4px 8px",
   borderRadius: 6,
-  border: "1px solid #d1d5db",
+  border: "1px solid var(--border)",
   fontSize: 13,
   width: 90,
 } as const;
@@ -80,11 +80,11 @@ export default function ScoringConfigEditor({ leagueId, token }: { leagueId: num
   const renderCategory = (cat: Category, label: string) => {
     const c = form[cat];
     return (
-      <div style={{ flex: "1 1 280px", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
+      <div style={{ flex: "1 1 280px", border: "1px solid var(--border-subtle)", borderRadius: 10, padding: 14 }}>
         <h4 style={{ margin: "0 0 8px" }}>{label}</h4>
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ textAlign: "left", color: "#6b7280" }}>
+            <tr style={{ textAlign: "left", color: "var(--text-muted)" }}>
               <th style={{ fontWeight: 600, paddingBottom: 4 }}>Finish ≤ (sec)</th>
               <th style={{ fontWeight: 600, paddingBottom: 4 }}>Points</th>
               <th />
@@ -124,7 +124,7 @@ export default function ScoringConfigEditor({ leagueId, token }: { leagueId: num
                   <button
                     type="button"
                     onClick={() => updateCat(cat, { ...c, tiers: c.tiers.filter((_, j) => j !== i) })}
-                    style={{ padding: "2px 8px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#991b1b", fontSize: 12, cursor: "pointer" }}
+                    style={{ padding: "2px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--danger-text)", fontSize: 12, cursor: "pointer" }}
                   >
                     ✕
                   </button>
@@ -136,7 +136,7 @@ export default function ScoringConfigEditor({ leagueId, token }: { leagueId: num
         <button
           type="button"
           onClick={() => updateCat(cat, { ...c, tiers: [...c.tiers, { maxSeconds: "", points: "1" }] })}
-          style={{ marginTop: 6, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#0f172a", fontSize: 12, cursor: "pointer" }}
+          style={{ marginTop: 6, padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 12, cursor: "pointer" }}
         >
           + Add tier
         </button>
@@ -169,12 +169,12 @@ export default function ScoringConfigEditor({ leagueId, token }: { leagueId: num
           type="button"
           onClick={handleSave}
           disabled={saving}
-          style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#2563eb", color: "white", fontWeight: 600, cursor: "pointer" }}
+          style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--primary)", color: "var(--text-on-brand)", fontWeight: 600, cursor: "pointer" }}
         >
           {saving ? "Saving…" : "Save scoring"}
         </button>
-        {status && <span style={{ color: "#166534", fontSize: 13 }}>{status}</span>}
-        {error && <span style={{ color: "#991b1b", fontSize: 13 }}>{error}</span>}
+        {status && <span style={{ color: "var(--success-text)", fontSize: 13 }}>{status}</span>}
+        {error && <span style={{ color: "var(--danger-text)", fontSize: 13 }}>{error}</span>}
       </div>
     </div>
   );

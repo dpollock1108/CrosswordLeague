@@ -259,7 +259,7 @@ export default function NytTracker() {
       {statusBulk && <p style={{ color: "green" }}>{statusBulk}</p>}
       {errorBulk && <p style={{ color: "crimson" }}>Error: {errorBulk}</p>}
 
-      <hr style={{ margin: "16px 0", border: "none", borderBottom: "1px solid #e5e7eb" }} />
+      <hr style={{ margin: "16px 0", border: "none", borderBottom: "1px solid var(--border-subtle)" }} />
 
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
         <form onSubmit={handleCreatePlayer}>
@@ -490,7 +490,7 @@ export default function NytTracker() {
             </h4>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9em" }}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid var(--border-subtle)" }}>
                   <th style={{ padding: "4px 8px" }}>NYT Username</th>
                   <th style={{ padding: "4px 8px" }}>Time</th>
                   <th style={{ padding: "4px 8px" }}>Seconds</th>
@@ -502,7 +502,7 @@ export default function NytTracker() {
                 {parseResult.parsed.map((entry) => (
                   <tr
                     key={entry.nyt_username}
-                    style={{ borderBottom: "1px solid #e5e7eb", color: entry.matched ? "inherit" : "crimson" }}
+                    style={{ borderBottom: "1px solid var(--border-subtle)", color: entry.matched ? "inherit" : "crimson" }}
                   >
                     <td style={{ padding: "4px 8px" }}>{entry.nyt_username}</td>
                     <td style={{ padding: "4px 8px" }}>{entry.time_str}</td>

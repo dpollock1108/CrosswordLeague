@@ -78,7 +78,7 @@ export default function Leagues() {
   const inputStyle = {
     padding: "8px 10px",
     borderRadius: 8,
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--border)",
     fontSize: 14,
   } as const;
 
@@ -86,8 +86,8 @@ export default function Leagues() {
     padding: "8px 14px",
     borderRadius: 8,
     border: "none",
-    background: "#2563eb",
-    color: "white",
+    background: "var(--primary)",
+    color: "var(--text-on-brand)",
     fontWeight: 600,
     cursor: "pointer",
   } as const;
@@ -102,12 +102,12 @@ export default function Leagues() {
       </div>
 
       {error && (
-        <div style={{ padding: 12, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 14 }}>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--danger-surface)", color: "var(--danger-text)", fontSize: 14 }}>
           {error}
         </div>
       )}
       {notice && (
-        <div style={{ padding: 12, borderRadius: 8, background: "#f0fdf4", color: "#166534", fontSize: 14 }}>
+        <div style={{ padding: 12, borderRadius: 8, background: "#f0fdf4", color: "var(--success-text)", fontSize: 14 }}>
           {notice}
         </div>
       )}
@@ -171,9 +171,9 @@ export default function Leagues() {
                 alignItems: "center",
                 padding: "12px 16px",
                 borderRadius: 10,
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--border-subtle)",
                 textDecoration: "none",
-                color: "#0f172a",
+                color: "var(--text)",
                 opacity: pending ? 0.7 : 1,
               } as const;
               const meta = (

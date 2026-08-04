@@ -163,7 +163,7 @@ export default function LeagueDetail() {
   if (error && !league) {
     return (
       <div>
-        <div style={{ padding: 12, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 14 }}>{error}</div>
+        <div style={{ padding: 12, borderRadius: 8, background: "var(--danger-surface)", color: "var(--danger-text)", fontSize: 14 }}>{error}</div>
         <button onClick={() => navigate("/leagues")} style={{ marginTop: 12 }}>← Back to leagues</button>
       </div>
     );
@@ -177,31 +177,31 @@ export default function LeagueDetail() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div>
-        <button onClick={() => navigate("/leagues")} style={{ marginBottom: 8, background: "none", border: "none", color: "#2563eb", cursor: "pointer", padding: 0 }}>
+        <button onClick={() => navigate("/leagues")} style={{ marginBottom: 8, background: "none", border: "none", color: "var(--primary)", cursor: "pointer", padding: 0 }}>
           ← All leagues
         </button>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <h2 style={{ margin: 0 }}>{league.name}</h2>
           <button
             onClick={handleLeave}
-            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#991b1b", cursor: "pointer", fontSize: 13 }}
+            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--danger-text)", cursor: "pointer", fontSize: 13 }}
           >
             Leave league
           </button>
         </div>
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span className="muted" style={{ fontSize: 14 }}>Invite code:</span>
-          <code style={{ fontSize: 16, fontWeight: 700, letterSpacing: 1, background: "#f1f5f9", padding: "4px 10px", borderRadius: 8 }}>
+          <code style={{ fontSize: 16, fontWeight: 700, letterSpacing: 1, background: "var(--surface-muted)", padding: "4px 10px", borderRadius: 8 }}>
             {league.invite_code}
           </code>
-          <button onClick={handleCopy} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#0f172a", cursor: "pointer", fontSize: 13 }}>
+          <button onClick={handleCopy} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", cursor: "pointer", fontSize: 13 }}>
             {copied ? "Copied!" : "Copy"}
           </button>
           <span
             style={{
               fontSize: 13, fontWeight: 600, padding: "2px 10px", borderRadius: 999,
-              background: league.visibility === "private" ? "#fef3c7" : "#dcfce7",
-              color: league.visibility === "private" ? "#92400e" : "#166534",
+              background: league.visibility === "private" ? "var(--warning-surface)" : "#dcfce7",
+              color: league.visibility === "private" ? "var(--warning-text)" : "var(--success-text)",
             }}
           >
             {league.visibility === "private" ? "Private" : "Public"}
@@ -210,7 +210,7 @@ export default function LeagueDetail() {
       </div>
 
       {error && league && (
-        <div style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 13 }}>{error}</div>
+        <div style={{ padding: 10, borderRadius: 8, background: "var(--danger-surface)", color: "var(--danger-text)", fontSize: 13 }}>{error}</div>
       )}
 
       {/* Leaderboard dashboard */}
@@ -240,10 +240,10 @@ export default function LeagueDetail() {
                 {podium.map((e, i) => (
                   <div key={e.player_id} style={{
                     flex: "1 1 160px", padding: 12, borderRadius: 12,
-                    background: ["#fef9c3", "#f1f5f9", "#fde7d3"][i] ?? "#f8fafc",
-                    border: "1px solid #e5e7eb",
+                    background: ["#fef9c3", "var(--surface-muted)", "#fde7d3"][i] ?? "var(--surface-subtle)",
+                    border: "1px solid var(--border-subtle)",
                   }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>#{i + 1}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)" }}>#{i + 1}</div>
                     <div style={{ fontWeight: 700 }}>{e.handle || e.name}</div>
                     <div style={{ fontSize: 13 }}>{e.total_points} pts · avg {formatSeconds(e.average_seconds)}</div>
                   </div>
@@ -252,7 +252,7 @@ export default function LeagueDetail() {
             )}
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid var(--border-subtle)" }}>
                   <th style={th}>#</th><th style={th}>Player</th>
                   <th style={thR}>Points</th><th style={thR}>Played</th>
                   <th style={thR}>Avg</th><th style={thR}>Best</th>
@@ -260,7 +260,7 @@ export default function LeagueDetail() {
               </thead>
               <tbody>
                 {board.entries.map((e: LeaderboardEntry, i) => (
-                  <tr key={e.player_id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <tr key={e.player_id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                     <td style={{ ...td, fontWeight: 600 }}>{i + 1}</td>
                     <td style={td}>{e.handle || e.name}</td>
                     <td style={{ ...tdR, fontWeight: 600 }}>{e.total_points}</td>
@@ -285,7 +285,7 @@ export default function LeagueDetail() {
           {league.members.map((m) => {
             const soleAdmin = m.role === "admin" && adminCount <= 1;
             return (
-              <div key={m.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              <div key={m.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
                 <span>
                   {m.handle || m.display_name}
                   {m.player_id == null && <span className="muted" style={{ fontSize: 12 }}> · no results linked</span>}
@@ -297,7 +297,7 @@ export default function LeagueDetail() {
                       onClick={() => handleDemote(m.user_id)}
                       disabled={soleAdmin}
                       title={soleAdmin ? "A league must have at least one admin" : undefined}
-                      style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: soleAdmin ? "#9ca3af" : "#0f172a", fontSize: 12, cursor: soleAdmin ? "not-allowed" : "pointer" }}
+                      style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: soleAdmin ? "var(--text-disabled)" : "var(--text)", fontSize: 12, cursor: soleAdmin ? "not-allowed" : "pointer" }}
                     >
                       Demote
                     </button>
@@ -306,13 +306,13 @@ export default function LeagueDetail() {
                     <>
                       <button
                         onClick={() => handlePromote(m.user_id)}
-                        style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#0f172a", fontSize: 12, cursor: "pointer" }}
+                        style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 12, cursor: "pointer" }}
                       >
                         Promote
                       </button>
                       <button
                         onClick={() => handleRemove(m.user_id, m.handle || m.display_name)}
-                        style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#991b1b", fontSize: 12, cursor: "pointer" }}
+                        style={{ padding: "2px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--danger-text)", fontSize: 12, cursor: "pointer" }}
                       >
                         Remove
                       </button>
@@ -327,7 +327,7 @@ export default function LeagueDetail() {
 
       {/* Admin section */}
       {isAdmin && token && (
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
           <h3 style={{ margin: 0 }}>Admin</h3>
 
           {league.pending_requests.length > 0 && (
@@ -338,8 +338,8 @@ export default function LeagueDetail() {
                   <div key={r.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, border: "1px solid #fde68a", background: "#fffbeb" }}>
                     <span>{r.handle || r.display_name}</span>
                     <span style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => handleApprove(r.user_id)} style={{ padding: "4px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "white", cursor: "pointer", fontSize: 13 }}>Approve</button>
-                      <button onClick={() => handleDeny(r.user_id)} style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#991b1b", cursor: "pointer", fontSize: 13 }}>Deny</button>
+                      <button onClick={() => handleApprove(r.user_id)} style={{ padding: "4px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "var(--text-on-brand)", cursor: "pointer", fontSize: 13 }}>Approve</button>
+                      <button onClick={() => handleDeny(r.user_id)} style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--danger-text)", cursor: "pointer", fontSize: 13 }}>Deny</button>
                     </span>
                   </div>
                 ))}
@@ -354,14 +354,14 @@ export default function LeagueDetail() {
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 maxLength={60}
-                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", fontSize: 14 }}
               />
               <button onClick={handleRename} disabled={!renameValue.trim() || renameValue.trim() === league.name}
-                style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "#2563eb", color: "white", fontWeight: 600, cursor: "pointer" }}>
+                style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "var(--primary)", color: "var(--text-on-brand)", fontWeight: 600, cursor: "pointer" }}>
                 Rename
               </button>
               <button onClick={handleToggleVisibility}
-                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#0f172a", cursor: "pointer", fontSize: 13 }}>
+                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", cursor: "pointer", fontSize: 13 }}>
                 Make {league.visibility === "private" ? "public" : "private"}
               </button>
             </div>
@@ -373,9 +373,9 @@ export default function LeagueDetail() {
           </div>
 
           <div>
-            <h4 style={{ margin: "0 0 8px", color: "#991b1b" }}>Danger zone</h4>
+            <h4 style={{ margin: "0 0 8px", color: "var(--danger-text)" }}>Danger zone</h4>
             <button onClick={handleDelete}
-              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #fca5a5", background: "white", color: "#991b1b", fontWeight: 600, cursor: "pointer" }}>
+              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid var(--danger-border)", background: "var(--surface)", color: "var(--danger-text)", fontWeight: 600, cursor: "pointer" }}>
               Delete league
             </button>
           </div>
@@ -389,19 +389,19 @@ const th = { padding: "8px 6px" } as const;
 const thR = { padding: "8px 6px", textAlign: "right" } as const;
 const td = { padding: "8px 6px" } as const;
 const tdR = { padding: "8px 6px", textAlign: "right" } as const;
-const navBtn = { padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#0f172a", fontSize: 13, cursor: "pointer" } as const;
+const navBtn = { padding: "4px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, cursor: "pointer" } as const;
 
 function Segmented({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (v: string) => void }) {
   return (
-    <div style={{ display: "inline-flex", borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+    <div style={{ display: "inline-flex", borderRadius: 10, border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
       {options.map(([val, lbl]) => (
         <button
           key={val}
           onClick={() => onChange(val)}
           style={{
             borderRadius: 0, fontSize: 13, padding: "5px 12px",
-            background: value === val ? "linear-gradient(135deg, #2563eb, #0ea5e9)" : "#ffffff",
-            color: value === val ? "#ffffff" : "#0f172a",
+            background: value === val ? "var(--brand-gradient)" : "var(--surface)",
+            color: value === val ? "var(--text-on-brand)" : "var(--text)",
           }}
         >
           {lbl}

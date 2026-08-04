@@ -43,8 +43,8 @@ function Nav() {
               padding: "8px 12px",
               borderRadius: 10,
               textDecoration: "none",
-              color: active ? "#0f172a" : "#374151",
-              background: active ? "rgba(37,99,235,0.12)" : "transparent",
+              color: active ? "var(--text)" : "var(--text-secondary)",
+              background: active ? "rgb(var(--primary-rgb) / 12%)" : "transparent",
               fontWeight: 600,
             }}
           >
@@ -74,15 +74,8 @@ function UserMenu() {
         <span style={{ fontWeight: 600, fontSize: 14 }}>{user.display_name}</span>
         <button
           onClick={logout}
-          style={{
-            padding: "6px 12px",
-            borderRadius: 8,
-            border: "1px solid #d1d5db",
-            background: "white",
-            color: "#0f172a",
-            cursor: "pointer",
-            fontSize: 13,
-          }}
+          className="btn-secondary"
+          style={{ padding: "6px 12px", fontSize: 13 }}
         >
           Sign out
         </button>
