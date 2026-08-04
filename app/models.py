@@ -108,6 +108,79 @@ class LeagueMembership(SQLModel, table=True):
     joined_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 
+class Friendship(SQLModel, table=True):
+    """A directed friend request that becomes a mutual friendship once accepted.
+
+    Exactly one row exists per pair: `requester_id` is whoever sent the request
+    and `addressee_id` is whoever must accept it. Reading the graph therefore
+    means matching on either column (see friend_service.friend_ids)."""
+
+    __tablename__ = "friendship"
+    __table_args__ = (UniqueConstraint("requester_id", "addressee_id", name="uix_friend_pair"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    requester_id: int = Field(foreign_key="user.id", index=True, nullable=False)
+    addressee_id: int = Field(foreign_key="user.id", index=True, nullable=False)
+    status: str = Field(default="pending", index=True)  # "pending" or "accepted"
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    responded_at: Optional[datetime] = Field(default=None)
+
+
+class TriviaQuestion(SQLModel, table=True):
+    """A user-submitted question. Questions must clear AI verification before
+    they can be scheduled onto a date and shown to players."""
+
+    __tablename__ = "trivia_question"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    prompt: str = Field(sa_column=Column(Text, nullable=False))
+    # JSON array of answer choices (exactly QUESTION_CHOICE_COUNT of them).
+    choices_data: str = Field(sa_column=Column(Text, nullable=False))
+    answer_index: int = Field(nullable=False)
+    explanation: Optional[str] = Field(default=None, sa_column=Column(Text))
+    category: Optional[str] = Field(default=None, index=True)
+    difficulty: Optional[str] = Field(default=None)  # "easy", "medium", "hard"
+    source_url: Optional[str] = Field(default=None)
+
+    submitted_by: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    # "pending" (awaiting verification) -> "approved" | "needs_review" | "rejected".
+    # "approved" questions are eligible for scheduling; "scheduled" once dated.
+    status: str = Field(default="pending", index=True)
+    # Null = in the bank. Set = live on that date. Only one question per date;
+    # enforced in the service layer since SQL treats NULLs as distinct.
+    question_date: Optional[date] = Field(default=None, index=True)
+
+    # AI verification outcome.
+    verdict: Optional[str] = Field(default=None)  # "approve", "reject", "needs_review"
+    verdict_confidence: Optional[int] = Field(default=None)  # 0-100
+    verdict_notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+    verified_at: Optional[datetime] = Field(default=None)
+    reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    published_at: Optional[datetime] = Field(default=None)
+
+
+class TriviaAnswer(SQLModel, table=True):
+    """One user's single attempt at one question. Created on /start (which
+    reveals the question) and finalized on /answer."""
+
+    __tablename__ = "trivia_answer"
+    __table_args__ = (UniqueConstraint("user_id", "question_id", name="uix_answer_user_question"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True, nullable=False)
+    question_id: int = Field(foreign_key="trivia_question.id", index=True, nullable=False)
+    question_date: date = Field(index=True, nullable=False)
+    started_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    answered_at: Optional[datetime] = Field(default=None)
+    # Server-measured seconds from reveal to answer, clamped to MAX_ANSWER_SECONDS.
+    seconds: Optional[int] = Field(default=None)
+    selected_index: Optional[int] = Field(default=None)
+    is_correct: Optional[bool] = Field(default=None)
+    points: int = Field(default=0)
+
+
 class PuzzleResult(SQLModel, table=True):
     __tablename__ = "puzzle_results"
     __table_args__ = (UniqueConstraint("player_id", "puzzle_date", "puzzle_type", name="uix_result_player_date_type"),)

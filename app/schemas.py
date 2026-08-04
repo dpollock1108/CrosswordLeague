@@ -319,3 +319,39 @@ class ScreenshotParseResponse(BaseModel):
     parsed: List[ParsedLeaderboardEntry]
     matched_count: int
     unmatched_count: int
+
+
+# ---------------------------------------------------------------------------
+# Friend schemas
+# ---------------------------------------------------------------------------
+
+
+class FriendRequestCreate(BaseModel):
+    handle: str = Field(min_length=2, max_length=40)
+
+
+class FriendPublic(BaseModel):
+    user_id: int
+    display_name: str
+    handle: Optional[str] = None
+    avatar_url: Optional[str] = None
+    friends_since: datetime
+
+
+class FriendRequestPublic(BaseModel):
+    user_id: int
+    display_name: str
+    handle: Optional[str] = None
+    avatar_url: Optional[str] = None
+    requested_at: datetime
+
+
+class FriendListResponse(BaseModel):
+    friends: List[FriendPublic]
+    incoming: List[FriendRequestPublic]
+    outgoing: List[FriendRequestPublic]
+
+
+class FriendRequestResult(BaseModel):
+    status: str  # "pending" (request sent) or "accepted" (they'd already asked)
+    friend: FriendRequestPublic
