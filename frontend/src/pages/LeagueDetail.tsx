@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import QotdBoard from "../components/QotdBoard";
 import {
   approveLeagueRequest,
   deleteLeague,
@@ -277,6 +278,17 @@ export default function LeagueDetail() {
 
       {/* Wall of Shame */}
       {token && <LeagueWallOfShame leagueId={league.id} token={token} />}
+
+      {/* Question of the Day — same members, separate game */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+          <h3 style={{ margin: 0 }}>Question of the Day</h3>
+          <Link to="/qotd" style={{ fontSize: 13 }}>Play today's question →</Link>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <QotdBoard scope="league" leagueId={league.id} />
+        </div>
+      </div>
 
       {/* Members */}
       <div>

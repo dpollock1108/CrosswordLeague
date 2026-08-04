@@ -10,18 +10,24 @@ import PuzzleBuilder from "./pages/PuzzleBuilder";
 import Profile from "./pages/Profile";
 import Leagues from "./pages/Leagues";
 import LeagueDetail from "./pages/LeagueDetail";
+import Qotd from "./pages/Qotd";
+import QotdSubmit from "./pages/QotdSubmit";
+import QotdAdmin from "./pages/QotdAdmin";
+import Friends from "./pages/Friends";
 
 function Nav() {
   const location = useLocation();
   const { user } = useAuth();
 
   const links = [
+    { to: "/qotd", label: "QOTD" },
     { to: "/leagues", label: "Leagues" },
     { to: "/play", label: "Play" },
     { to: "/scoring", label: "Scoring" },
   ];
 
   if (user) {
+    links.push({ to: "/friends", label: "Friends" });
     links.push({ to: "/profile", label: "My Profile" });
   }
 
@@ -29,12 +35,14 @@ function Nav() {
   if (user?.is_admin) {
     links.push({ to: "/builder", label: "Puzzle Builder" });
     links.push({ to: "/nyt-tracker", label: "NYT Tracker" });
+    links.push({ to: "/qotd-admin", label: "QOTD Admin" });
   }
 
   return (
     <nav style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
       {links.map((link) => {
-        const active = location.pathname === link.to || (link.to !== "/" && location.pathname.startsWith(link.to));
+        const active =
+          location.pathname === link.to || (link.to !== "/" && location.pathname.startsWith(`${link.to}/`));
         return (
           <Link
             key={link.to}
@@ -135,6 +143,10 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Navigate to="/leagues" replace />} />
+          <Route path="/qotd" element={<Qotd />} />
+          <Route path="/qotd/submit" element={<QotdSubmit />} />
+          <Route path="/qotd-admin" element={<QotdAdmin />} />
+          <Route path="/friends" element={<Friends />} />
           <Route path="/play" element={<DailyPuzzle />} />
           <Route path="/builder" element={<PuzzleBuilder />} />
           <Route path="/nyt-tracker" element={<NytTracker />} />

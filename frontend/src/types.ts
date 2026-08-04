@@ -231,3 +231,177 @@ export type PuzzleAdminPublic = {
   created_at: string;
   published_at?: string | null;
 };
+
+// ---------------------------------------------------------------------------
+// Friends
+// ---------------------------------------------------------------------------
+
+export type Friend = {
+  user_id: number;
+  display_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+  friends_since: string;
+};
+
+export type FriendRequest = {
+  user_id: number;
+  display_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+  requested_at: string;
+};
+
+export type FriendListResponse = {
+  friends: Friend[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+};
+
+export type FriendRequestResult = {
+  status: "pending" | "accepted";
+  friend: FriendRequest;
+};
+
+// ---------------------------------------------------------------------------
+// QOTD — question of the day
+// ---------------------------------------------------------------------------
+
+export type QotdScope = "friends" | "league";
+
+export type QotdQuestion = {
+  id: number;
+  prompt: string;
+  choices: string[];
+  category?: string | null;
+  difficulty?: string | null;
+  question_date: string;
+  submitted_by_handle?: string | null;
+};
+
+export type QotdAttempt = {
+  question_id: number;
+  question_date: string;
+  started_at: string;
+  answered_at?: string | null;
+  seconds?: number | null;
+  selected_index?: number | null;
+  is_correct?: boolean | null;
+  points: number;
+};
+
+export type QotdToday = {
+  question?: QotdQuestion | null;
+  attempt?: QotdAttempt | null;
+  answer_index?: number | null;
+  explanation?: string | null;
+  streak: number;
+};
+
+export type QotdAnswerResult = {
+  is_correct: boolean;
+  answer_index: number;
+  selected_index: number;
+  seconds: number;
+  points: number;
+  streak: number;
+  explanation?: string | null;
+};
+
+export type QotdBoardEntry = {
+  user_id: number;
+  display_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+  status: "answered" | "playing" | "not_started";
+  is_correct?: boolean | null;
+  seconds?: number | null;
+  points?: number | null;
+  is_you: boolean;
+};
+
+export type QotdBoard = {
+  question_date: string;
+  scope: QotdScope;
+  league_id?: number | null;
+  revealed: boolean;
+  entries: QotdBoardEntry[];
+};
+
+export type QotdLeaderboardEntry = {
+  user_id: number;
+  display_name: string;
+  handle?: string | null;
+  avatar_url?: string | null;
+  total_points: number;
+  played: number;
+  correct: number;
+  accuracy?: number | null;
+  average_seconds?: number | null;
+  best_seconds?: number | null;
+  current_streak: number;
+  is_you: boolean;
+};
+
+export type QotdLeaderboard = {
+  start_date: string;
+  end_date: string;
+  scope: QotdScope;
+  league_id?: number | null;
+  entries: QotdLeaderboardEntry[];
+};
+
+export type QotdStats = {
+  played: number;
+  correct: number;
+  accuracy?: number | null;
+  average_seconds?: number | null;
+  best_seconds?: number | null;
+  total_points: number;
+  current_streak: number;
+  longest_streak: number;
+  submitted: number;
+  submissions_live: number;
+};
+
+export type QotdVerification = {
+  verdict?: "approve" | "needs_review" | "reject" | null;
+  confidence?: number | null;
+  notes?: string | null;
+  verified_at?: string | null;
+};
+
+export type QotdSubmission = {
+  id: number;
+  prompt: string;
+  choices: string[];
+  answer_index: number;
+  explanation?: string | null;
+  category?: string | null;
+  difficulty?: string | null;
+  source_url?: string | null;
+  status: "pending" | "approved" | "needs_review" | "rejected" | "scheduled";
+  question_date?: string | null;
+  verification: QotdVerification;
+  created_at: string;
+};
+
+export type QotdAdminQuestion = QotdSubmission & {
+  submitted_by?: number | null;
+  submitted_by_handle?: string | null;
+};
+
+export type QotdSubmissionResult = {
+  submission: QotdSubmission;
+  message: string;
+};
+
+export type QotdSubmitInput = {
+  prompt: string;
+  choices: string[];
+  answer_index: number;
+  explanation?: string | null;
+  category?: string | null;
+  difficulty?: string | null;
+  source_url?: string | null;
+};

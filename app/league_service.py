@@ -269,6 +269,17 @@ def get_pending_requests(session: Session, league_id: int) -> List[LeagueMemberP
     return out
 
 
+def league_member_user_ids(session: Session, league_id: int) -> set[int]:
+    """User IDs for ACTIVE league members."""
+    rows = session.exec(
+        select(LeagueMembership.user_id).where(
+            LeagueMembership.league_id == league_id,
+            LeagueMembership.status == "active",
+        )
+    ).all()
+    return set(rows)
+
+
 def league_member_player_ids(session: Session, league_id: int) -> set[int]:
     """Player IDs for ACTIVE league members (members without a linked Player are skipped)."""
     rows = session.exec(

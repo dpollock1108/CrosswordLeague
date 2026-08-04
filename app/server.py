@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import init_db
-from .routers import auth, leaderboard, leagues, players, puzzles, results
+from .routers import auth, friends, leaderboard, leagues, players, puzzles, qotd, results
 from .schemas import HealthResponse
 
 
@@ -35,6 +35,8 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard.router)
     app.include_router(puzzles.router)
     app.include_router(leagues.router)
+    app.include_router(friends.router)
+    app.include_router(qotd.router)
 
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
     if frontend_dist.is_dir():

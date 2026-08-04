@@ -1,5 +1,7 @@
 import type {
   AuthResponse,
+  FriendListResponse,
+  FriendRequestResult,
   LeaderboardResponse,
   LeagueDetail,
   LeagueJoinResult,
@@ -12,6 +14,16 @@ import type {
   PuzzleArchiveResponse,
   PuzzleResultInput,
   PuzzleTodayResponse,
+  QotdAdminQuestion,
+  QotdAnswerResult,
+  QotdBoard,
+  QotdLeaderboard,
+  QotdScope,
+  QotdStats,
+  QotdSubmission,
+  QotdSubmissionResult,
+  QotdSubmitInput,
+  QotdToday,
   ScreenshotParseResponse,
   SolveAttempt,
   SubmitResult,
@@ -503,5 +515,206 @@ export async function leaveLeague(jwt: string, leagueId: number): Promise<void> 
     headers: { Authorization: `Bearer ${jwt}` },
   }).then((res) => {
     if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Friends
+// ---------------------------------------------------------------------------
+
+const authJson = (jwt: string) => ({
+  Authorization: `Bearer ${jwt}`,
+  "Content-Type": "application/json",
+});
+
+async function httpVoid(path: string, init: RequestInit): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, init);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+}
+
+export async function fetchFriends(jwt: string): Promise<FriendListResponse> {
+  return http<FriendListResponse>("/friends", {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function sendFriendRequest(jwt: string, handle: string): Promise<FriendRequestResult> {
+  return http<FriendRequestResult>("/friends/requests", {
+    method: "POST",
+    headers: authJson(jwt),
+    body: JSON.stringify({ handle }),
+  });
+}
+
+export async function acceptFriendRequest(jwt: string, requesterId: number): Promise<void> {
+  return httpVoid(`/friends/requests/${requesterId}/accept`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function declineFriendRequest(jwt: string, requesterId: number): Promise<void> {
+  return httpVoid(`/friends/requests/${requesterId}/decline`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function cancelFriendRequest(jwt: string, addresseeId: number): Promise<void> {
+  return httpVoid(`/friends/requests/${addresseeId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function removeFriend(jwt: string, friendId: number): Promise<void> {
+  return httpVoid(`/friends/${friendId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// QOTD
+// ---------------------------------------------------------------------------
+
+function scopeQuery(scope: QotdScope, leagueId?: number | null): string {
+  const search = new URLSearchParams({ scope });
+  if (scope === "league" && leagueId != null) search.set("league_id", String(leagueId));
+  return search.toString();
+}
+
+export async function fetchQotdToday(jwt: string): Promise<QotdToday> {
+  return http<QotdToday>("/qotd/today", { headers: { Authorization: `Bearer ${jwt}` } });
+}
+
+export async function startQotd(jwt: string, questionId: number): Promise<void> {
+  return httpVoid(`/qotd/${questionId}/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function answerQotd(
+  jwt: string,
+  questionId: number,
+  selectedIndex: number,
+): Promise<QotdAnswerResult> {
+  return http<QotdAnswerResult>(`/qotd/${questionId}/answer`, {
+    method: "POST",
+    headers: authJson(jwt),
+    body: JSON.stringify({ selected_index: selectedIndex }),
+  });
+}
+
+export async function fetchQotdBoard(
+  jwt: string,
+  scope: QotdScope = "friends",
+  leagueId?: number | null,
+): Promise<QotdBoard> {
+  return http<QotdBoard>(`/qotd/board?${scopeQuery(scope, leagueId)}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function fetchQotdLeaderboard(
+  jwt: string,
+  scope: QotdScope = "friends",
+  leagueId?: number | null,
+  range?: { startDate?: string; endDate?: string },
+): Promise<QotdLeaderboard> {
+  const search = new URLSearchParams(scopeQuery(scope, leagueId));
+  if (range?.startDate) search.set("start_date", range.startDate);
+  if (range?.endDate) search.set("end_date", range.endDate);
+  return http<QotdLeaderboard>(`/qotd/leaderboard?${search.toString()}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function fetchQotdStats(jwt: string): Promise<QotdStats> {
+  return http<QotdStats>("/qotd/stats", { headers: { Authorization: `Bearer ${jwt}` } });
+}
+
+export async function submitQotdQuestion(
+  jwt: string,
+  payload: QotdSubmitInput,
+): Promise<QotdSubmissionResult> {
+  return http<QotdSubmissionResult>("/qotd/questions", {
+    method: "POST",
+    headers: authJson(jwt),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchMySubmissions(jwt: string): Promise<QotdSubmission[]> {
+  return http<QotdSubmission[]>("/qotd/questions/mine", {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+// Admin
+
+export async function fetchQotdAdminQuestions(
+  jwt: string,
+  status?: string,
+): Promise<QotdAdminQuestion[]> {
+  const qs = status ? `?${new URLSearchParams({ status }).toString()}` : "";
+  return http<QotdAdminQuestion[]>(`/qotd/admin/questions${qs}`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function reviewQotdQuestion(
+  jwt: string,
+  questionId: number,
+  approve: boolean,
+  notes?: string,
+): Promise<QotdAdminQuestion> {
+  return http<QotdAdminQuestion>(`/qotd/admin/questions/${questionId}/review`, {
+    method: "POST",
+    headers: authJson(jwt),
+    body: JSON.stringify({ approve, notes: notes || null }),
+  });
+}
+
+export async function reverifyQotdQuestion(
+  jwt: string,
+  questionId: number,
+): Promise<QotdAdminQuestion> {
+  return http<QotdAdminQuestion>(`/qotd/admin/questions/${questionId}/reverify`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function scheduleQotdQuestion(
+  jwt: string,
+  questionId: number,
+  questionDate: string,
+): Promise<QotdAdminQuestion> {
+  return http<QotdAdminQuestion>(`/qotd/admin/questions/${questionId}/schedule`, {
+    method: "POST",
+    headers: authJson(jwt),
+    body: JSON.stringify({ question_date: questionDate }),
+  });
+}
+
+export async function unscheduleQotdQuestion(
+  jwt: string,
+  questionId: number,
+): Promise<QotdAdminQuestion> {
+  return http<QotdAdminQuestion>(`/qotd/admin/questions/${questionId}/unschedule`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+}
+
+export async function deleteQotdQuestion(jwt: string, questionId: number): Promise<void> {
+  return httpVoid(`/qotd/admin/questions/${questionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
   });
 }
