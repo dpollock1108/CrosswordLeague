@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
 import type { Clue, CluesData, GridCell } from "../types";
 
 export interface CellPosition {
@@ -24,15 +25,18 @@ interface CrosswordGridProps {
   onTabClue: (forward: boolean) => void;
 }
 
-export function cellSizeFor(size: number): number {
+// Biggest cell we'll ever draw. Below this the grid is fluid: it fills the
+// width it is given and the cells shrink with it, so a 9x9 still fits on a
+// 360px phone.
+function maxCellSize(size: number): number {
   return size <= 5 ? 64 : 44;
 }
 
-// Rendered width of the grid box, so sibling UI (e.g. the current-clue banner)
-// can line up with it. Mirrors the inline styles below: 1px gaps between cells
-// and a 2px border on each side.
-export function gridPixelWidth(size: number): number {
-  return size * cellSizeFor(size) + (size - 1) + 4;
+// Widest the grid box is ever drawn, so sibling UI (e.g. the current-clue
+// banner) can line up with it. Mirrors the styles below: 1px gaps between
+// cells and a 2px border on each side.
+export function gridMaxWidth(size: number): number {
+  return size * maxCellSize(size) + (size - 1) + 4;
 }
 
 // Compute clue numbers for cells (standard crossword numbering)
@@ -158,86 +162,112 @@ export default function CrosswordGrid({
     }
   }, [handleKeyDown]);
 
-  // Focus the grid when selected changes (only while playable)
+  // Focus the grid when selected changes (only while playable).
+  // preventScroll matters on phones: the grid is tall relative to the viewport
+  // and a plain focus() yanks the page around after every letter.
   useEffect(() => {
     if (active && selected && gridRef.current) {
-      gridRef.current.focus();
+      gridRef.current.focus({ preventScroll: true });
     }
   }, [selected, active]);
 
-  const cellSize = cellSizeFor(size);
-  const fontSize = size <= 5 ? 24 : 18;
-  const numberSize = size <= 5 ? 11 : 9;
+  // Text scales with the grid instead of the viewport: the wrapper below is a
+  // size container, so 1cqw is 1% of the grid's own width and each cell is
+  // ~(100/size)cqw wide. The px caps keep the desktop rendering identical to
+  // the old fixed-size grid.
+  //
+  // The same px values also feed --xw-letter / --xw-num, which the .xw-letter
+  // and .xw-num rules in styles.css read. Browsers without container query
+  // units (Safari < 16) can't parse the inline min() and drop it, so the class
+  // rule shows through — cells keep their full-size text instead of falling
+  // back to the inherited 16px. The layout itself needs no fallback: it is
+  // 1fr columns plus aspect-ratio, both far older than container queries.
+  const letterPx = size <= 5 ? 24 : 18;
+  const numberPx = size <= 5 ? 11 : 9;
+  const fontSize = `min(${(40 / size).toFixed(2)}cqw, ${letterPx}px)`;
+  const numberSize = `min(${(20 / size).toFixed(2)}cqw, ${numberPx}px)`;
 
   return (
     <div
-      ref={gridRef}
-      tabIndex={0}
       style={{
-        display: "inline-grid",
-        gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-        gridTemplateRows: `repeat(${size}, ${cellSize}px)`,
-        gap: 1,
-        background: "#1f2937",
-        border: "2px solid #1f2937",
-        borderRadius: 4,
-        outline: "none",
-      }}
+        containerType: "inline-size",
+        width: "100%",
+        maxWidth: gridMaxWidth(size),
+        "--xw-letter": `${letterPx}px`,
+        "--xw-num": `${numberPx}px`,
+      } as CSSProperties}
     >
-      {cells.map((row, r) =>
-        row.map((cell, c) => {
-          const key = `${r},${c}`;
-          const isSelected = selected?.row === r && selected?.col === c;
-          const isWordHighlight = wordCells.has(key);
-          const isError = errorCells?.has(key);
-          const number = cellNumbers.get(key);
+      <div
+        ref={gridRef}
+        tabIndex={0}
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gap: 1,
+          background: "#1f2937",
+          border: "2px solid #1f2937",
+          borderRadius: 4,
+          outline: "none",
+          // Kill the double-tap-to-zoom delay so taps register immediately.
+          touchAction: "manipulation",
+        }}
+      >
+        {cells.map((row, r) =>
+          row.map((cell, c) => {
+            const key = `${r},${c}`;
+            const isSelected = selected?.row === r && selected?.col === c;
+            const isWordHighlight = wordCells.has(key);
+            const isError = errorCells?.has(key);
+            const number = cellNumbers.get(key);
 
-          let bg = "white";
-          if (cell.is_black) bg = "#1f2937";
-          else if (isError) bg = "#fecaca";
-          else if (isSelected) bg = "#93c5fd";
-          else if (isWordHighlight) bg = "#dbeafe";
+            let bg = "white";
+            if (cell.is_black) bg = "#1f2937";
+            else if (isError) bg = "#fecaca";
+            else if (isSelected) bg = "#93c5fd";
+            else if (isWordHighlight) bg = "#dbeafe";
 
-          return (
-            <div
-              key={key}
-              onClick={() => active && !cell.is_black && onCellClick(r, c)}
-              style={{
-                width: cellSize,
-                height: cellSize,
-                background: bg,
-                position: "relative",
-                cursor: cell.is_black ? "default" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                userSelect: "none",
-              }}
-            >
-              {number && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 2,
-                    left: 3,
-                    fontSize: numberSize,
-                    fontWeight: 600,
-                    color: "#374151",
-                    lineHeight: 1,
-                  }}
-                >
-                  {number}
-                </span>
-              )}
-              {!cell.is_black && (
-                <span style={{ fontSize, fontWeight: 600, color: "#111827" }}>
-                  {userLetters[r]?.[c] || ""}
-                </span>
-              )}
-            </div>
-          );
-        }),
-      )}
+            return (
+              <div
+                key={key}
+                onClick={() => active && !cell.is_black && onCellClick(r, c)}
+                style={{
+                  aspectRatio: "1 / 1",
+                  background: bg,
+                  position: "relative",
+                  cursor: cell.is_black ? "default" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  userSelect: "none",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {number && (
+                  <span
+                    className="xw-num"
+                    style={{
+                      position: "absolute",
+                      top: "4%",
+                      left: "6%",
+                      fontSize: numberSize,
+                      fontWeight: 600,
+                      color: "#374151",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {number}
+                  </span>
+                )}
+                {!cell.is_black && (
+                  <span className="xw-letter" style={{ fontSize, fontWeight: 600, color: "#111827" }}>
+                    {userLetters[r]?.[c] || ""}
+                  </span>
+                )}
+              </div>
+            );
+          }),
+        )}
+      </div>
     </div>
   );
 }

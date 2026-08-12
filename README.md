@@ -112,11 +112,14 @@ frontend/src/
     LeagueDetail.tsx        — League leaderboard, members, admin controls
     DailyPuzzle.tsx         — Interactive crossword solver
     Profile.tsx             — Authenticated user's profile + handle editor
-    ScoringPage.tsx         — Scoring rules documentation
     NytTracker.tsx          — Legacy NYT Mini import tools (screenshot/CSV/manual)
   components/
-    CrosswordGrid.tsx       — Interactive crossword grid component
+    CrosswordGrid.tsx       — Interactive crossword grid component (fluid width)
     ClueList.tsx            — Clue sidebar with active highlighting
+    MobileKeyboard.tsx      — On-screen keyboard for touch devices
+    ScoringConfigEditor.tsx — Per-league scoring tiers (league admins)
+  hooks/
+    useIsTouch.ts           — "no hover, coarse pointer" media query
 ```
 
 ### Data Model
@@ -187,7 +190,7 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 | `/leagues/:id` | League leaderboard + members | Member |
 | `/play` | Daily crossword solver | Authenticated |
 | `/profile` | Your profile + handle editor | Authenticated |
-| `/scoring` | Scoring rules | Authenticated |
+| `/scoring` | Retired — scoring is per league now; redirects to `/leagues` | Authenticated |
 | `/builder` | Puzzle builder (manual + AI) | Admin only |
 | `/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
 
@@ -201,6 +204,12 @@ The `/play` page features an interactive crossword grid:
 - Server-side timer (anti-cheat) — solution never sent to client
 - Auto-save every 30 seconds for resume support
 - On completion, a `PuzzleResult` is created automatically for scoring
+
+On phones and tablets (`hover: none` + `pointer: coarse`) the page switches to a
+touch layout: the grid becomes fluid so a 9×9 fits a 360px screen, and the
+current clue plus an on-screen keyboard dock to the bottom of the viewport. The
+grid is a `div` rather than an `input`, so tapping it can never raise the native
+keyboard — `MobileKeyboard` is what makes the puzzle playable on a phone.
 
 ### Deployment
 

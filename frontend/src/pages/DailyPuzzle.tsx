@@ -5,9 +5,11 @@ import type {
   Clue, CluesData, GridCell, GridData, PuzzleArchiveResponse, PuzzlePublic, SolveAttempt, SubmitResult,
 } from "../types";
 import CrosswordGrid, {
-  findClueForCell, getWordCells, gridPixelWidth, type CellPosition,
+  findClueForCell, getWordCells, gridMaxWidth, type CellPosition,
 } from "../components/CrosswordGrid";
 import ClueList from "../components/ClueList";
+import MobileKeyboard from "../components/MobileKeyboard";
+import useIsTouch from "../hooks/useIsTouch";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -64,6 +66,7 @@ function nextSelection(
 
 export default function DailyPuzzle() {
   const { user, token } = useAuth();
+  const isTouch = useIsTouch();
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("mini_5x5");
   // null = today's puzzle; otherwise a specific puzzle id (catch-up / view).
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -340,6 +343,34 @@ export default function DailyPuzzle() {
     setSelected({ row: clue.row, col: clue.col });
   }, []);
 
+  const playable = started && !isComplete;
+
+  // On-screen keyboard taps. Deliberately mirrors the physical-key handling in
+  // CrosswordGrid so both input paths behave identically.
+  const onKeyLetter = useCallback(
+    (letter: string) => {
+      if (!selected || !playable) return;
+      onLetterInput(selected.row, selected.col, letter);
+      onAdvance();
+    },
+    [selected, playable, onLetterInput, onAdvance],
+  );
+
+  const onKeyDelete = useCallback(() => {
+    if (!selected || !playable) return;
+    onLetterInput(selected.row, selected.col, "");
+    onRetreat();
+  }, [selected, playable, onLetterInput, onRetreat]);
+
+  // Bring the grid to the top of the screen when play starts on a phone, so it
+  // isn't stranded below the archive chips with the keyboard covering it.
+  const gridWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isTouch && playable) {
+      gridWrapRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }, [isTouch, playable]);
+
   // The clue the cursor is currently in — drives both the ClueList highlight
   // and the banner above the grid, so the two can never disagree.
   const activeClue = useMemo(() => {
@@ -469,6 +500,35 @@ export default function DailyPuzzle() {
     );
   }
 
+  // Built once and placed by whichever layout renders below.
+  const grid = (
+    <CrosswordGrid
+      size={size}
+      cells={gridData.cells}
+      userLetters={userLetters}
+      direction={direction}
+      selected={selected}
+      active={playable}
+      clues={cluesData}
+      onCellClick={onCellClick}
+      onLetterInput={onLetterInput}
+      onDirectionToggle={onDirectionToggle}
+      onNavigate={onNavigate}
+      onAdvance={onAdvance}
+      onRetreat={onRetreat}
+      onTabClue={onTabClue}
+    />
+  );
+
+  const clueList = (
+    <ClueList
+      across={cluesData.across}
+      down={cluesData.down}
+      activeClue={activeClue}
+      onClueClick={onClueClick}
+    />
+  );
+
   return (
     <div>
       {typeTabs}
@@ -535,17 +595,72 @@ export default function DailyPuzzle() {
             {starting ? "Starting…" : "▶ Play"}
           </button>
         </div>
+      ) : isTouch ? (
+        /* Phone layout: full-width grid up top, clue + keyboard docked to the
+         * bottom of the screen, clue list tucked away until it's wanted. */
+        <div>
+          <div ref={gridWrapRef} style={{ display: "flex", justifyContent: "center", scrollMarginTop: 8 }}>
+            {/* Also capped by viewport height so the grid stays fully visible
+              * above the keyboard in landscape. */}
+            <div style={{ width: "100%", maxWidth: `min(${gridMaxWidth(size)}px, 62vh)` }}>
+              {grid}
+            </div>
+          </div>
+
+          {incorrect && !isComplete && (
+            <p style={{ color: "#b91c1c", marginTop: 10, fontWeight: 600, textAlign: "center" }}>
+              Not quite — something's still incorrect. Keep at it!
+            </p>
+          )}
+
+          <details style={{ marginTop: 16 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, color: "var(--text-secondary)" }}>
+              All clues
+            </summary>
+            <div style={{ marginTop: 8 }}>{clueList}</div>
+          </details>
+
+          {playable && (
+            <>
+              {/* Keeps the docked bar from covering the end of the page. */}
+              <div style={{ height: 260 }} aria-hidden />
+              <div className="play-dock">
+                <div className="clue-bar">
+                  <button type="button" className="clue-nav" aria-label="Previous clue"
+                    onPointerDown={(e) => { e.preventDefault(); onTabClue(false); }}>
+                    ‹
+                  </button>
+                  <div className="clue-bar-text">
+                    {activeClue && (
+                      <>
+                        <span style={{ fontWeight: 700, whiteSpace: "nowrap", color: "#1e3a8a" }}>
+                          {activeClue.number}
+                          {activeClue.direction === "across" ? "A" : "D"}
+                        </span>
+                        <span>{activeClue.text}</span>
+                      </>
+                    )}
+                  </div>
+                  <button type="button" className="clue-nav" aria-label="Next clue"
+                    onPointerDown={(e) => { e.preventDefault(); onTabClue(true); }}>
+                    ›
+                  </button>
+                </div>
+                <MobileKeyboard onLetter={onKeyLetter} onDelete={onKeyDelete} />
+              </div>
+            </>
+          )}
+        </div>
       ) : (
         /* Grid + Clues layout */
         <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div>
+          <div style={{ flex: "1 1 320px", minWidth: 0, maxWidth: gridMaxWidth(size) }}>
             {/* Current clue, always on screen — the clue list can be scrolled
               * anywhere without losing track of what you're actually solving.
               * Reserves its height so the grid doesn't shift as clues change. */}
             <div
               style={{
-                width: gridPixelWidth(size),
-                maxWidth: "100%",
+                width: "100%",
                 minHeight: 56,
                 display: "flex",
                 alignItems: "center",
@@ -570,22 +685,7 @@ export default function DailyPuzzle() {
               )}
             </div>
 
-            <CrosswordGrid
-              size={size}
-              cells={gridData.cells}
-              userLetters={userLetters}
-              direction={direction}
-              selected={selected}
-              active={started && !isComplete}
-              clues={cluesData}
-              onCellClick={onCellClick}
-              onLetterInput={onLetterInput}
-              onDirectionToggle={onDirectionToggle}
-              onNavigate={onNavigate}
-              onAdvance={onAdvance}
-              onRetreat={onRetreat}
-              onTabClue={onTabClue}
-            />
+            {grid}
 
             {!isComplete && (
               <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
@@ -600,14 +700,7 @@ export default function DailyPuzzle() {
             )}
           </div>
 
-          <div style={{ flex: "1 1 250px", minWidth: 200 }}>
-            <ClueList
-              across={cluesData.across}
-              down={cluesData.down}
-              activeClue={activeClue}
-              onClueClick={onClueClick}
-            />
-          </div>
+          <div style={{ flex: "1 1 250px", minWidth: 0 }}>{clueList}</div>
         </div>
       )}
     </div>

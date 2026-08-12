@@ -98,6 +98,8 @@ body {
   margin: 0;
   padding: 0;
   background: transparent;
+  /* Stop iOS from inflating text in landscape, which breaks the grid's sizing. */
+  -webkit-text-size-adjust: 100%;
 }
 
 header {
@@ -349,11 +351,140 @@ button:not(:disabled):hover {
   margin: auto 0;
 }
 
+/* Fallback cell text sizes for browsers without container query units
+ * (Safari < 16). CrosswordGrid sets the inline font-size in cqw with a px cap;
+ * where cqw doesn't parse the browser drops that declaration and lands here
+ * instead of on the inherited 16px. The variables are set on the grid wrapper
+ * so they already carry the right value for the puzzle's size. */
+.xw-letter {
+  font-size: var(--xw-letter);
+}
+
+.xw-num {
+  font-size: var(--xw-num);
+}
+
+/* ---------------------------------------------------------------------------
+ * Touch play surface
+ *
+ * The crossword grid is a div, not an input, so tapping it can never raise the
+ * native keyboard. On touch devices the clue and an on-screen keyboard dock to
+ * the bottom of the viewport instead. Like the grid itself, these are NOT
+ * tokenized — they sit against the fixed puzzle palette.
+ * ------------------------------------------------------------------------- */
+.play-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: #f3f4f6;
+  border-top: 1px solid #d1d5db;
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.15);
+}
+
+.clue-bar {
+  display: flex;
+  align-items: stretch;
+  background: #dbeafe;
+  color: #111827;
+}
+
+.clue-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 6px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.clue-nav {
+  background: transparent;
+  border: none;
+  color: #1e3a8a;
+  font-size: 26px;
+  line-height: 1;
+  padding: 0 16px;
+  border-radius: 0;
+  flex: 0 0 auto;
+}
+
+.clue-nav:not(:disabled):hover {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
+.kbd {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 3px calc(6px + env(safe-area-inset-bottom, 0px));
+  /* The keyboard owns its taps: no scrolling, no double-tap zoom. */
+  touch-action: none;
+  user-select: none;
+}
+
+.kbd-row {
+  display: flex;
+  gap: 4px;
+}
+
+.kbd-spacer {
+  flex: 0.5;
+}
+
+.kbd-key {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0;
+  border-radius: 6px;
+  border: none;
+  background: #ffffff;
+  color: #111827;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.35);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kbd-key-wide {
+  flex: 1.6;
+}
+
+.kbd-key:active {
+  background: #cbd5e1;
+}
+
+.kbd-key:not(:disabled):hover {
+  transform: none;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.35);
+  filter: none;
+}
+
 @media (max-width: 640px) {
   header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+    padding: 16px 12px;
+  }
+
+  main {
+    padding: 0 12px 32px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .card {
+    padding: 12px;
   }
 
   .dashboard-grid {

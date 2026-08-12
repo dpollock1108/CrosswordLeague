@@ -4,7 +4,6 @@ import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
 import Landing from "./pages/Landing";
 import NytTracker from "./pages/NytTracker";
-import ScoringPage from "./pages/ScoringPage";
 import DailyPuzzle from "./pages/DailyPuzzle";
 import PuzzleBuilder from "./pages/PuzzleBuilder";
 import Profile from "./pages/Profile";
@@ -15,10 +14,11 @@ function Nav() {
   const location = useLocation();
   const { user } = useAuth();
 
+  // Scoring is configured per league now, so there is no global scoring page —
+  // each league's rules live on its own detail page.
   const links = [
     { to: "/leagues", label: "Leagues" },
     { to: "/play", label: "Play" },
-    { to: "/scoring", label: "Scoring" },
   ];
 
   if (user) {
@@ -131,7 +131,7 @@ export default function App() {
           <Route path="/play" element={<DailyPuzzle />} />
           <Route path="/builder" element={<PuzzleBuilder />} />
           <Route path="/nyt-tracker" element={<NytTracker />} />
-          <Route path="/scoring" element={<ScoringPage />} />
+          <Route path="/scoring" element={<Navigate to="/leagues" replace />} />
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/leagues/:id" element={<LeagueDetail />} />
           <Route path="/profile" element={<Profile />} />
