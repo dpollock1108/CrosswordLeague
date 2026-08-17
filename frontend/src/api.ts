@@ -25,8 +25,13 @@ import type {
 // `??` rather than `||` on purpose: an explicitly empty VITE_API_BASE means
 // "same origin" and must not fall through to a localhost default, which is
 // what previously shipped to production.
-const API_BASE =
+const API_ORIGIN =
   import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? "http://localhost:8001" : "");
+
+// Must match API_PREFIX in app/server.py. The API is namespaced so that its
+// routes can't shadow the client-side ones — /leagues used to resolve to the
+// API on a page refresh, which is why deep links returned an auth error.
+const API_BASE = `${API_ORIGIN}/api`;
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

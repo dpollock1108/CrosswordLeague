@@ -91,7 +91,7 @@ def _get_user(engine, uid):
 
 def test_submit_records_accumulated_active_time_not_wallclock(client_and_engine):
     client, engine, pid = client_and_engine
-    r = client.post(f"/puzzles/{pid}/start")
+    r = client.post(f"/api/puzzles/{pid}/start")
     assert r.status_code == 201
 
     # Force the attempt's baseline to 3s ago, then heartbeat -> +3s active.
@@ -101,7 +101,7 @@ def test_submit_records_accumulated_active_time_not_wallclock(client_and_engine)
         s.add(att); s.commit()
 
     grid = json.dumps({"cells": [[{"letter": "C"}, {"letter": "A"}, {"letter": "T"}]]})
-    client.post(f"/puzzles/{pid}/save", json={"grid_state": grid})
+    client.post(f"/api/puzzles/{pid}/save", json={"grid_state": grid})
 
     # Simulate the tab being closed a long time before submitting.
     with Session(engine) as s:
@@ -109,7 +109,7 @@ def test_submit_records_accumulated_active_time_not_wallclock(client_and_engine)
         att.last_tick_at = datetime.utcnow() - timedelta(seconds=600)
         s.add(att); s.commit()
 
-    r = client.post(f"/puzzles/{pid}/submit", json={"grid_state": grid})
+    r = client.post(f"/api/puzzles/{pid}/submit", json={"grid_state": grid})
     body = r.json()
     assert body["correct"] is True
     # ~3s (heartbeat) + capped 5s (the long pre-submit gap) — NOT 600+ wall clock.
