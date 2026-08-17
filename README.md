@@ -148,37 +148,42 @@ Leaderboard totals sum points across the requested date range, sorted by total p
 
 ### API Overview
 
+All API routes are namespaced under `/api`, so they can never shadow a
+client-side route. Before this, the API's `/leagues` shadowed the SPA's
+`/leagues`, and refreshing that page returned an auth error instead of the
+app. `/health` deliberately stays at the root — CI and Cloud Run probe it.
+
 **Public:**
 - `GET /health` — Service status
-- `GET /leaderboard?start_date=&end_date=&puzzle_type=` — Leaderboard
-- `GET /players` — List all players
-- `GET /players/{id}/stats` — Player statistics
-- `GET /wall-of-shame?scope=week|month` — Missing puzzle report
+- `GET /api/leaderboard?start_date=&end_date=&puzzle_type=` — Leaderboard
+- `GET /api/players` — List all players
+- `GET /api/players/{id}/stats` — Player statistics
+- `GET /api/wall-of-shame?scope=week|month` — Missing puzzle report
 
 **Auth:**
-- `POST /auth/google` — Exchange Google ID token for JWT
-- `GET /auth/me` — Current user profile
-- `PUT /auth/me` — Update display name and handle
+- `POST /api/auth/google` — Exchange Google ID token for JWT
+- `GET /api/auth/me` — Current user profile
+- `PUT /api/auth/me` — Update display name and handle
 
 **Puzzles (requires auth):**
-- `GET /puzzles/today?type=mini_5x5` — Today's puzzle (answers stripped)
-- `GET /puzzles/archive?type=mini_5x5` — This week's playable puzzles (catch-up) + your all-time completed
-- `GET /puzzles/{id}` — Specific puzzle + solve attempt state
-- `POST /puzzles/{id}/start` — Start solve timer
-- `POST /puzzles/{id}/save` — Save progress (auto-save every 30s)
-- `POST /puzzles/{id}/submit` — Submit for server-side validation
+- `GET /api/puzzles/today?type=mini_5x5` — Today's puzzle (answers stripped)
+- `GET /api/puzzles/archive?type=mini_5x5` — This week's playable puzzles (catch-up) + your all-time completed
+- `GET /api/puzzles/{id}` — Specific puzzle + solve attempt state
+- `POST /api/puzzles/{id}/start` — Start solve timer
+- `POST /api/puzzles/{id}/save` — Save progress (auto-save every 30s)
+- `POST /api/puzzles/{id}/submit` — Submit for server-side validation
 
 **Admin (requires `X-Admin-Token` header):**
-- `POST /players` — Create player
-- `PUT /players/{id}` — Update player
-- `POST /results` — Bulk upsert results
-- `POST /results/single` — Single result upsert
-- `POST /results/parse-screenshot` — Parse NYT leaderboard screenshot
-- `POST /results/import-csv` — CSV import
-- `POST /puzzles` — Create puzzle manually
-- `POST /puzzles/generate` — Generate puzzle with AI
-- `POST /puzzles/{id}/assign` — Assign a repository puzzle to a date (goes live that day)
-- `POST /puzzles/{id}/unassign` — Return a puzzle to the repository (clears its date)
+- `POST /api/players` — Create player
+- `PUT /api/players/{id}` — Update player
+- `POST /api/results` — Bulk upsert results
+- `POST /api/results/single` — Single result upsert
+- `POST /api/results/parse-screenshot` — Parse NYT leaderboard screenshot
+- `POST /api/results/import-csv` — CSV import
+- `POST /api/puzzles` — Create puzzle manually
+- `POST /api/puzzles/generate` — Generate puzzle with AI
+- `POST /api/puzzles/{id}/assign` — Assign a repository puzzle to a date (goes live that day)
+- `POST /api/puzzles/{id}/unassign` — Return a puzzle to the repository (clears its date)
 
 ### Frontend Pages
 
