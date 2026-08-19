@@ -30,14 +30,40 @@ result count** — the player-link column is what makes bugs #2 and #3 visible a
 a glance. Supersedes most of `app/list_users.py`.
 
 ### 5. Filter obscure words out of generated puzzles
-Entries are already scored for ease of guess, but obscure ones still get
-through, and a confusing first puzzle is the fastest way to lose a new player.
+Entries are already scored, but obscure ones still get through, and a confusing
+first puzzle is the fastest way to lose a new player.
 
-Not yet investigated. Starting points: `app/puzzle_gen.py`,
-`puzzle_gen_algo.py`, `puzzle_gen_ai.py`. Questions to answer first — where does
-the word list come from, what is the current ease score and its threshold, and
-is the fix a stricter cutoff, a better-curated source, or a frequency-based
-filter? Consider a tighter threshold for Mini than Medium.
+**This is not a threshold tweak.** `_MIN_QUALITY_SCORE = 50` in
+`puzzle_gen_algo.py` is commented as "highest tier — common, well-known", but 50
+is the top of only five bands and contains 119,368 entries, including `ATREE`,
+`SETAT`, `ESOS`, `TIETO` and `OTOES`. The score bands are crossword-fill
+acceptability, not familiarity.
+
+Tightening the filter alone makes generation *fail*: restricting the list to
+words that also appear in a plain English dictionary (6,454 entries) produced
+**zero** valid 5x5 grids across 400 attempts. The current templates and solver
+depend on crosswordese to close a 5x5.
+
+So the fix is some combination of: a real frequency-ranked word list rather than
+the binary cutoff; grid templates with more black squares so entries are shorter
+and less constrained; and possibly a tighter bar for Mini than Medium. Worth
+deciding what "obscure" means concretely before building anything.
+
+### 15. Self-service account deletion
+The privacy policy now promises "ask us to delete your account and we will
+remove it and your associated data." Nothing in the codebase does that, so today
+it means manual SQL — and it's a commitment in writing, which makes this the
+one item with an external obligation attached.
+
+The hard part isn't the delete, it's `puzzle_results`. Those rows feed league
+leaderboards, so removing a player silently rewrites history for everyone else
+in their league. Decide the policy first: hard-delete results, or anonymise the
+player (drop email, handle, avatar, `google_id`; keep the results attached to a
+tombstone) so past leaderboards still add up. Anonymising is the usual answer
+and is defensible under GDPR, but it is a decision, not a default.
+
+Note `user.player_id` is unique and `puzzle_results.player_id` is `NOT NULL`
+with no cascade, so a naive `DELETE FROM "user"` either fails or orphans rows.
 
 ## Delivery pipeline
 
@@ -85,6 +111,18 @@ in the deploy) would make the solver testable locally.
 
 ### 13. Commit or drop `app/list_users.py`
 Currently uncommitted. Item 4 largely replaces it.
+
+### 16. Self-host the display font
+`styles.css` line 1 pulls Space Grotesk from `fonts.googleapis.com`, so every
+visitor's browser contacts Google and reveals its IP address on page load —
+before sign-in, and including people who never sign in at all. That's a real
+disclosure the privacy policy currently has to make, and a recurring GDPR
+complaint against Google Fonts specifically.
+
+Vendoring the woff2 files into the repo and swapping the `@import` for a local
+`@font-face` deletes the third-party request entirely, removes that paragraph
+from the policy, and drops a render-blocking round trip to another origin.
+Cheap fix, three wins.
 
 ### 14. README still documents the retired global scoring ladder
 The "Scoring" section lists the fixed 1–5 point tiers and the +1 first-place

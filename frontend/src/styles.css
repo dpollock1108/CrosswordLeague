@@ -351,6 +351,38 @@ button:not(:disabled):hover {
   margin: auto 0;
 }
 
+/* Landing page: pitch on the left, playable demo puzzle on the right. Collapses
+ * to a single column on narrow screens, with the puzzle moved above the prose —
+ * it's the thing worth trying, and nobody scrolls past three paragraphs to
+ * find it on a phone. */
+.landing-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 48px;
+  align-items: start;
+}
+
+.landing-puzzle {
+  position: sticky;
+  top: 24px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .landing-hero {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .landing-puzzle {
+    position: static;
+    order: -1;
+    max-width: 420px;
+    width: 100%;
+    justify-self: center;
+  }
+}
+
 /* Fallback cell text sizes for browsers without container query units
  * (Safari < 16). CrosswordGrid sets the inline font-size in cqw with a px cap;
  * where cqw doesn't parse the browser drops that declaration and lands here

@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "./contexts/AuthContext";
 import HandleSetup from "./components/HandleSetup";
@@ -9,6 +9,7 @@ import PuzzleBuilder from "./pages/PuzzleBuilder";
 import Profile from "./pages/Profile";
 import Leagues from "./pages/Leagues";
 import LeagueDetail from "./pages/LeagueDetail";
+import Privacy from "./pages/Privacy";
 
 function Nav() {
   const location = useLocation();
@@ -97,24 +98,20 @@ function UserMenu() {
   );
 }
 
-export default function App() {
-  const { user, loading } = useAuth();
-
-  // Avoid flashing the landing page while the stored session is being validated.
-  if (loading) return null;
-
-  // Signed-out visitors get the explainer / sign-in landing page.
-  if (!user) {
-    return <Landing />;
-  }
-
-  // Logged-in user without a handle → force onboarding
-  if (!user.handle) {
-    return <HandleSetup />;
-  }
-
+function Footer() {
   return (
-    <BrowserRouter>
+    <footer style={{ padding: "8px 24px 32px", textAlign: "center" }}>
+      <Link className="muted" to="/privacy" style={{ fontSize: 13 }}>
+        Privacy
+      </Link>
+    </footer>
+  );
+}
+
+// Signed-in chrome: header, nav, and whichever page matched.
+function Shell() {
+  return (
+    <>
       <header>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
           <div>
@@ -126,17 +123,48 @@ export default function App() {
         <Nav />
       </header>
       <main>
-        <Routes>
-          <Route path="/" element={<Navigate to="/leagues" replace />} />
-          <Route path="/play" element={<DailyPuzzle />} />
-          <Route path="/builder" element={<PuzzleBuilder />} />
-          <Route path="/nyt-tracker" element={<NytTracker />} />
-          <Route path="/scoring" element={<Navigate to="/leagues" replace />} />
-          <Route path="/leagues" element={<Leagues />} />
-          <Route path="/leagues/:id" element={<LeagueDetail />} />
-          <Route path="/profile" element={<Profile />} />
-        </Routes>
+        <Outlet />
       </main>
+      <Footer />
+    </>
+  );
+}
+
+export default function App() {
+  const { user, loading } = useAuth();
+
+  // Avoid flashing the landing page while the stored session is being validated.
+  if (loading) return null;
+
+  // The router wraps everything, signed in or not, so that public pages resolve
+  // for visitors who aren't. /privacy in particular has to: Google's OAuth
+  // consent screen links to it, and that link is followed by people who have not
+  // signed in — by definition, since it's shown before they agree to.
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/privacy" element={<Privacy />} />
+
+        {!user ? (
+          // Signed-out visitors get the splash page whatever path they asked for.
+          <Route path="*" element={<Landing />} />
+        ) : !user.handle ? (
+          // Signed in but no handle yet → onboarding, no escaping it.
+          <Route path="*" element={<HandleSetup />} />
+        ) : (
+          <Route element={<Shell />}>
+            <Route path="/" element={<Navigate to="/leagues" replace />} />
+            <Route path="/play" element={<DailyPuzzle />} />
+            <Route path="/builder" element={<PuzzleBuilder />} />
+            <Route path="/nyt-tracker" element={<NytTracker />} />
+            <Route path="/scoring" element={<Navigate to="/leagues" replace />} />
+            <Route path="/leagues" element={<Leagues />} />
+            <Route path="/leagues/:id" element={<LeagueDetail />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="*" element={<Navigate to="/leagues" replace />} />
+          </Route>
+        )}
+      </Routes>
     </BrowserRouter>
   );
 }
