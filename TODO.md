@@ -109,8 +109,6 @@ in the deploy) would make the solver testable locally.
 ### 12. Node 20 deprecation warnings in CI
 `actions/checkout@v4`, `actions/setup-node@v4`, `astral-sh/setup-uv@v5`.
 
-### 13. Commit or drop `app/list_users.py`
-Currently uncommitted. Item 4 largely replaces it.
 
 ### 16. Self-host the display font
 `styles.css` line 1 pulls Space Grotesk from `fonts.googleapis.com`, so every
@@ -130,6 +128,13 @@ bonus as if they were global. That's the same claim the `/scoring` page was
 deleted for — scoring is per league now, configured via `ScoringConfigEditor`.
 
 ## Done
+
+### 13. `app/list_users.py`
+Committed. `uv run python -m app.list_users` lists registered users, reading
+`DATABASE_URL` the same way the app does — local SQLite by default, or point it
+at production through the Cloud SQL Proxy. Item 4's admin view would still be
+the better answer for day-to-day use, since this needs a terminal and database
+access.
 
 ### 1. Refreshing on /leagues returned "Missing authorization header."
 The API and the SPA shared one path namespace, so `GET /leagues` matched the
