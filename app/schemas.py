@@ -319,3 +319,20 @@ class ScreenshotParseResponse(BaseModel):
     parsed: List[ParsedLeaderboardEntry]
     matched_count: int
     unmatched_count: int
+
+
+class ScheduledPublishType(BaseModel):
+    """What the scheduled publish job did for one puzzle type."""
+    puzzle_type: str
+    target_date: date
+    published_puzzle_id: Optional[int] = None
+    already_published: bool
+    generated: int
+    buffer_remaining: int
+    errors: List[str]
+
+
+class ScheduledPublishResult(BaseModel):
+    target_date: date
+    ok: bool  # false = at least one type has no puzzle for target_date
+    results: List[ScheduledPublishType]

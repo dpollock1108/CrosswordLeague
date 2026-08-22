@@ -20,9 +20,12 @@ from ..schemas import (
     PuzzleGenerateRequest,
     PuzzlePublic,
     PuzzleTodayResponse,
+    ScheduledPublishResult,
+    ScheduledPublishType,
     SolveAttemptPublic,
     SubmitResult,
 )
+from ..puzzle_scheduler import next_puzzle_date, publish_next_day
 from ..scoring import _time_points
 
 
@@ -555,3 +558,38 @@ def delete_puzzle(
         )
     session.delete(puzzle)
     session.commit()
+
+
+@router.post("/cron/publish-next", response_model=ScheduledPublishResult)
+def cron_publish_next(
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin_or_token),
+) -> ScheduledPublishResult:
+    """Publish tomorrow's puzzles and refill the draft buffer (scheduled job).
+
+    Called by Cloud Scheduler ~12 hours before the puzzles go live. Safe to call
+    more than once: a type that already has a puzzle for the target date is left
+    alone.
+
+    Returns 200 with ok=false rather than an error status when a type ends up
+    with no puzzle, so the response body always explains what happened — but
+    Scheduler only sees status codes, so alerting has to read `ok`, not the HTTP
+    code. See the retry note in the README.
+    """
+    outcomes = publish_next_day(session)
+    return ScheduledPublishResult(
+        target_date=next_puzzle_date(),
+        ok=all(o.ok for o in outcomes),
+        results=[
+            ScheduledPublishType(
+                puzzle_type=o.puzzle_type,
+                target_date=o.target_date,
+                published_puzzle_id=o.published_puzzle_id,
+                already_published=o.already_published,
+                generated=o.generated,
+                buffer_remaining=o.buffer_remaining,
+                errors=o.errors,
+            )
+            for o in outcomes
+        ],
+    )
