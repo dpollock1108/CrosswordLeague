@@ -184,6 +184,7 @@ app. `/health` deliberately stays at the root — CI and Cloud Run probe it.
 - `POST /api/puzzles/generate` — Generate puzzle with AI
 - `POST /api/puzzles/{id}/assign` — Assign a repository puzzle to a date (goes live that day)
 - `POST /api/puzzles/{id}/unassign` — Return a puzzle to the repository (clears its date)
+- `POST /api/puzzles/cron/publish-next` — Publish tomorrow's puzzles and refill the draft buffer (see Scheduled publishing)
 
 ### Frontend Pages
 
@@ -282,6 +283,60 @@ automatically on deploy. Two things follow from that:
 - Every cold-started instance runs it, so a scale-up can run migrations
   concurrently. Alembic takes no lock by default. Deploy schema changes when
   traffic is low, or move migrations to a dedicated pre-deploy step.
+
+#### Scheduled publishing
+
+`POST /api/puzzles/cron/publish-next` publishes the next day's mini and medium
+and then refills the repository buffer. `min-instances=0` means nothing
+in-process can run a timer, so it is driven externally by Cloud Scheduler.
+
+**It publishes from a buffer rather than generating on demand.** Generating
+tomorrow's puzzle at the moment it is needed makes every day depend on an AI
+call and a CSP solve both succeeding in the next few seconds. Instead the job
+assigns the oldest unassigned draft, then generates to top the buffer back up
+(`BUFFER_TARGET = 3` in `app/puzzle_scheduler.py`). A generation outage costs
+buffer depth, and there are several days of warning before it costs a player a
+puzzle.
+
+Each step commits separately, so even a run killed halfway leaves tomorrow's
+puzzle published — only the top-up is lost.
+
+Create the job (once):
+
+```bash
+gcloud scheduler jobs create http publish-next-puzzles \
+  --project=crosswordleague \
+  --location=us-central1 \
+  --schedule="0 12 * * *" \
+  --time-zone=UTC \
+  --uri="https://crosswordboys.com/api/puzzles/cron/publish-next" \
+  --http-method=POST \
+  --attempt-deadline=540s \
+  --headers="X-Admin-Token=$(gcloud secrets versions access latest --secret=ADMIN_TOKEN --project=crosswordleague)"
+```
+
+`0 12 * * *` UTC is 12 hours before the 00:00 UTC rollover that makes a puzzle
+"today's" (`date.today()` in the container is UTC). **If the rollover timezone
+ever changes, this cron expression and `next_puzzle_date()` have to move
+together.**
+
+Two caveats worth knowing:
+
+- The admin token ends up stored in the Scheduler job config, readable by anyone
+  with console access. An OIDC token against a dedicated endpoint would avoid
+  that standing credential.
+- Scheduler only sees the HTTP status. The endpoint returns 200 with `ok: false`
+  when a type ends up with no puzzle, so a failure looks like success to
+  Scheduler's retry logic. Alerting has to read the response body — or the log
+  line the job writes — not the status code.
+
+Safe to run by hand, and safe to run twice; a type that already has a puzzle for
+the target date is left alone:
+
+```bash
+curl -X POST https://crosswordboys.com/api/puzzles/cron/publish-next \
+  -H "X-Admin-Token: $ADMIN_TOKEN"
+```
 
 ### Seed Data
 

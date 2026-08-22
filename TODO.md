@@ -129,6 +129,20 @@ deleted for — scoring is per league now, configured via `ScoringConfigEditor`.
 
 ## Done
 
+### 17. Scheduled publishing of the next day's puzzles
+`POST /api/puzzles/cron/publish-next` publishes tomorrow's mini and medium and
+refills the draft buffer. Publishes from a buffer of pre-generated drafts rather
+than generating on demand, so a generation outage costs buffer depth instead of
+a day's puzzle. Idempotent, and each type is handled independently.
+
+**Still to do:** create the Cloud Scheduler job — the command is in the README
+under Deployment / Scheduled publishing. Nothing runs until that exists.
+
+**Known gaps, deliberately left:** the admin token lives in the Scheduler job
+config rather than using OIDC; and the endpoint returns 200 with `ok: false` on
+partial failure, so Scheduler's retry logic can't see a problem — alerting has
+to read the body or the logs.
+
 ### 13. `app/list_users.py`
 Committed. `uv run python -m app.list_users` lists registered users, reading
 `DATABASE_URL` the same way the app does — local SQLite by default, or point it
