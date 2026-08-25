@@ -16,7 +16,7 @@ const ROWS = [
   "RIOT#",
   "INTEL",
   "#KING",
-  "##NSA",
+  "##TSA",
 ] as const;
 
 const BLACK = "#";
@@ -38,7 +38,7 @@ export const DEMO_CLUES: CluesData = {
     { number: 4, clue: "An unrowdy crowd may become one", row: 1, col: 0, length: 4 },
     { number: 6, clue: "Chip-making giant", row: 2, col: 0, length: 5 },
     { number: 8, clue: "He's worth 10 in blackjack", row: 3, col: 1, length: 4 },
-    { number: 9, clue: "US spy org", row: 4, col: 2, length: 3 },
+    { number: 9, clue: "US travel org", row: 4, col: 2, length: 3 },
   ],
   down: [
     { number: 1, clue: "Prefix with -archy or -angle", row: 0, col: 0, length: 3 },
