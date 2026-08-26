@@ -1,4 +1,5 @@
 import type {
+  AdminUserRow,
   AuthResponse,
   LeaderboardResponse,
   LeagueDetail,
@@ -515,5 +516,12 @@ export async function leaveLeague(jwt: string, leagueId: number): Promise<void> 
     headers: { Authorization: `Bearer ${jwt}` },
   }).then((res) => {
     if (!res.ok) return res.text().then((t) => { throw new Error(t || res.statusText); });
+  });
+}
+
+// Admin
+export async function fetchAdminUsers(jwt: string): Promise<AdminUserRow[]> {
+  return http<AdminUserRow[]>("/admin/users", {
+    headers: { Authorization: `Bearer ${jwt}` },
   });
 }

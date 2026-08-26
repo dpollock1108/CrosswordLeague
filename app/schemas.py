@@ -336,3 +336,22 @@ class ScheduledPublishResult(BaseModel):
     target_date: date
     ok: bool  # false = at least one type has no puzzle for target_date
     results: List[ScheduledPublishType]
+
+
+class AdminUserRow(BaseModel):
+    """One row of the admin user list."""
+    id: int
+    email: str
+    display_name: str
+    handle: Optional[str] = None
+    avatar_url: Optional[str] = None
+    is_admin: bool
+    created_at: datetime
+    last_login_at: datetime
+    # The linked Player is where results hang off. A user with no player, or a
+    # player with no results, is the fingerprint of the legacy-linking bugs.
+    player_id: Optional[int] = None
+    player_name: Optional[str] = None
+    player_handle: Optional[str] = None
+    result_count: int = 0
+    league_count: int = 0

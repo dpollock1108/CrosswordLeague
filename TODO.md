@@ -21,14 +21,6 @@ Fix: also match by handle at signup, or offer a claim flow.
 
 ## Features
 
-### 4. Admin view of registered users
-Admin-gated `GET` plus a page, using the existing `require_admin_or_token`
-dependency (`app/auth.py:127`) and the `user?.is_admin` nav block in `App.tsx`.
-
-Show email, handle, joined, last seen, **linked `player.id` and that player's
-result count** — the player-link column is what makes bugs #2 and #3 visible at
-a glance. Supersedes most of `app/list_users.py`.
-
 ### 5. Filter obscure words out of generated puzzles
 Entries are already scored, but obscure ones still get through, and a confusing
 first puzzle is the fastest way to lose a new player.
@@ -128,6 +120,16 @@ bonus as if they were global. That's the same claim the `/scoring` page was
 deleted for — scoring is per league now, configured via `ScoringConfigEditor`.
 
 ## Done
+
+### 4. Admin view of registered users
+`/admin/users` (admin-only nav link) backed by `GET /api/admin/users`. Shows
+each user with their handle, linked `player.id`, solve count and league count —
+the player column is what makes bugs #2 and #3 visible at a glance: a user with
+no player, or whose handle differs from their player's, is the fingerprint.
+
+Counts come from two grouped queries joined in memory rather than a count per
+row, so it doesn't become N+1 later. Supersedes `app/list_users.py` for
+day-to-day use, though the CLI still works without a browser.
 
 ### 17. Scheduled publishing of the next day's puzzles
 `POST /api/puzzles/cron/publish-next` publishes tomorrow's mini and medium and

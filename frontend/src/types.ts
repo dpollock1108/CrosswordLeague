@@ -231,3 +231,19 @@ export type PuzzleAdminPublic = {
   created_at: string;
   published_at?: string | null;
 };
+
+export type AdminUserRow = {
+  id: number;
+  email: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
+  is_admin: boolean;
+  created_at: string;
+  last_login_at: string;
+  player_id: number | null;
+  player_name: string | null;
+  player_handle: string | null;
+  result_count: number;
+  league_count: number;
+};

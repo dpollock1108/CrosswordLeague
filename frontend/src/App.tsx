@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Leagues from "./pages/Leagues";
 import LeagueDetail from "./pages/LeagueDetail";
 import Privacy from "./pages/Privacy";
+import AdminUsers from "./pages/AdminUsers";
 
 function Nav() {
   const location = useLocation();
@@ -28,6 +29,7 @@ function Nav() {
 
   // Only show admin links to admins
   if (user?.is_admin) {
+    links.push({ to: "/admin/users", label: "Users" });
     links.push({ to: "/builder", label: "Puzzle Builder" });
     links.push({ to: "/nyt-tracker", label: "NYT Tracker" });
   }
@@ -161,6 +163,7 @@ export default function App() {
             <Route path="/leagues" element={<Leagues />} />
             <Route path="/leagues/:id" element={<LeagueDetail />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="*" element={<Navigate to="/leagues" replace />} />
           </Route>
         )}
