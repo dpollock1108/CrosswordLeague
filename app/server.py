@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import init_db
-from .routers import auth, leaderboard, leagues, players, puzzles, results
+from .routers import admin, auth, leaderboard, leagues, players, puzzles, results
 from .schemas import HealthResponse
 
 # Mount point for every API route. The SPA owns every other path.
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     # header, and answered "Missing authorization header." instead of serving
     # the app. Deep links only worked if you navigated from the root.
     api = APIRouter(prefix=API_PREFIX)
+    api.include_router(admin.router)
     api.include_router(auth.router)
     api.include_router(players.router)
     api.include_router(results.router)

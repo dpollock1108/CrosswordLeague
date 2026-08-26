@@ -102,6 +102,7 @@ app/
     players.py     — Player CRUD + stats
     results.py     — Puzzle result submission (bulk, single, CSV, screenshot)
     leaderboard.py — Leaderboard + wall of shame
+    admin.py       — Read-only admin views over the whole install
     puzzles.py     — Puzzle CRUD, solve flow, AI generation
   migrations/      — Alembic migration files
 frontend/src/
@@ -112,6 +113,9 @@ frontend/src/
     LeagueDetail.tsx        — League leaderboard, members, admin controls
     DailyPuzzle.tsx         — Interactive crossword solver
     Profile.tsx             — Authenticated user's profile + handle editor
+    Admin.tsx               — Admin section shell + sub-nav (admin only)
+    AdminUsers.tsx          — Registered users + their linked Player
+    Privacy.tsx             — Privacy policy (public, no sign-in required)
     NytTracker.tsx          — Legacy NYT Mini import tools (screenshot/CSV/manual)
   components/
     CrosswordGrid.tsx       — Interactive crossword grid component (fluid width)
@@ -173,7 +177,8 @@ app. `/health` deliberately stays at the root — CI and Cloud Run probe it.
 - `POST /api/puzzles/{id}/save` — Save progress (auto-save every 30s)
 - `POST /api/puzzles/{id}/submit` — Submit for server-side validation
 
-**Admin (requires `X-Admin-Token` header):**
+**Admin (requires `X-Admin-Token` header, or a JWT for a user with `is_admin`):**
+- `GET /api/admin/users` — Every registered user with their linked Player, solve count and league count
 - `POST /api/players` — Create player
 - `PUT /api/players/{id}` — Update player
 - `POST /api/results` — Bulk upsert results
@@ -196,9 +201,14 @@ app. `/health` deliberately stays at the root — CI and Cloud Run probe it.
 | `/leagues/:id` | League leaderboard + members | Member |
 | `/play` | Daily crossword solver | Authenticated |
 | `/profile` | Your profile + handle editor | Authenticated |
+| `/privacy` | Privacy policy | Public |
+| `/admin` | Admin section (redirects to Users) | Admin only |
+| `/admin/users` | Registered users + linked Players | Admin only |
+| `/admin/builder` | Puzzle builder (manual + AI) | Admin only |
+| `/admin/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
 | `/scoring` | Retired — scoring is per league now; redirects to `/leagues` | Authenticated |
-| `/builder` | Puzzle builder (manual + AI) | Admin only |
-| `/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
+| `/builder` | Redirects to `/admin/builder` | Admin only |
+| `/nyt-tracker` | Redirects to `/admin/nyt-tracker` | Admin only |
 
 ### Crossword Solver
 
