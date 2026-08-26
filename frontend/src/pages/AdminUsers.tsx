@@ -24,7 +24,7 @@ const th = { padding: "8px 10px", whiteSpace: "nowrap" } as const;
 const td = { padding: "8px 10px", verticalAlign: "middle" } as const;
 
 export default function AdminUsers() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [rows, setRows] = useState<AdminUserRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -48,16 +48,7 @@ export default function AdminUsers() {
     );
   }, [rows, query]);
 
-  // Belt and braces — the route is already behind the admin nav, but a URL is
-  // guessable and the API would reject it anyway.
-  if (!user?.is_admin) {
-    return (
-      <div className="card">
-        <h2>Not available</h2>
-        <p className="muted">This page is for site admins.</p>
-      </div>
-    );
-  }
+  // No admin guard here — the /admin layout owns that for every section.
 
   return (
     <div>

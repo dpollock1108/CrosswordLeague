@@ -121,8 +121,13 @@ deleted for — scoring is per league now, configured via `ScoringConfigEditor`.
 
 ## Done
 
-### 4. Admin view of registered users
-`/admin/users` (admin-only nav link) backed by `GET /api/admin/users`. Shows
+### 4. Admin section, starting with a view of registered users
+A single **Admin** nav link opens `/admin`, a section with its own sub-nav
+(Users, Puzzle Builder, NYT Tracker) so future admin tools don't keep widening
+the header. Puzzle Builder and NYT Tracker moved under it, with redirects from
+their old top-level URLs.
+
+`/admin/users` is backed by `GET /api/admin/users`. Shows
 each user with their handle, linked `player.id`, solve count and league count —
 the player column is what makes bugs #2 and #3 visible at a glance: a user with
 no player, or whose handle differs from their player's, is the fingerprint.

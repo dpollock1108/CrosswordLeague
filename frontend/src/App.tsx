@@ -11,6 +11,7 @@ import Leagues from "./pages/Leagues";
 import LeagueDetail from "./pages/LeagueDetail";
 import Privacy from "./pages/Privacy";
 import AdminUsers from "./pages/AdminUsers";
+import Admin, { AdminIndex } from "./pages/Admin";
 
 function Nav() {
   const location = useLocation();
@@ -27,11 +28,11 @@ function Nav() {
     links.push({ to: "/profile", label: "My Profile" });
   }
 
-  // Only show admin links to admins
+  // One admin link, not one per tool. The individual sections live in the
+  // sub-nav inside /admin, so adding admin functionality doesn't keep widening
+  // the header for everyone.
   if (user?.is_admin) {
-    links.push({ to: "/admin/users", label: "Users" });
-    links.push({ to: "/builder", label: "Puzzle Builder" });
-    links.push({ to: "/nyt-tracker", label: "NYT Tracker" });
+    links.push({ to: "/admin", label: "Admin" });
   }
 
   return (
@@ -157,13 +158,24 @@ export default function App() {
           <Route element={<Shell />}>
             <Route path="/" element={<Navigate to="/leagues" replace />} />
             <Route path="/play" element={<DailyPuzzle />} />
-            <Route path="/builder" element={<PuzzleBuilder />} />
-            <Route path="/nyt-tracker" element={<NytTracker />} />
             <Route path="/scoring" element={<Navigate to="/leagues" replace />} />
             <Route path="/leagues" element={<Leagues />} />
             <Route path="/leagues/:id" element={<LeagueDetail />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
+
+            {/* Admin tools live under one section with its own sub-nav. */}
+            <Route path="/admin" element={<Admin />}>
+              <Route index element={<AdminIndex />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="builder" element={<PuzzleBuilder />} />
+              <Route path="nyt-tracker" element={<NytTracker />} />
+            </Route>
+
+            {/* The builder and tracker used to sit at the top level. Redirect
+              * rather than break a bookmark or a link in someone's chat. */}
+            <Route path="/builder" element={<Navigate to="/admin/builder" replace />} />
+            <Route path="/nyt-tracker" element={<Navigate to="/admin/nyt-tracker" replace />} />
+
             <Route path="*" element={<Navigate to="/leagues" replace />} />
           </Route>
         )}

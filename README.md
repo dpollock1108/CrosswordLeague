@@ -113,7 +113,8 @@ frontend/src/
     LeagueDetail.tsx        — League leaderboard, members, admin controls
     DailyPuzzle.tsx         — Interactive crossword solver
     Profile.tsx             — Authenticated user's profile + handle editor
-    AdminUsers.tsx          — Registered users + their linked Player (admin only)
+    Admin.tsx               — Admin section shell + sub-nav (admin only)
+    AdminUsers.tsx          — Registered users + their linked Player
     Privacy.tsx             — Privacy policy (public, no sign-in required)
     NytTracker.tsx          — Legacy NYT Mini import tools (screenshot/CSV/manual)
   components/
@@ -201,10 +202,13 @@ app. `/health` deliberately stays at the root — CI and Cloud Run probe it.
 | `/play` | Daily crossword solver | Authenticated |
 | `/profile` | Your profile + handle editor | Authenticated |
 | `/privacy` | Privacy policy | Public |
+| `/admin` | Admin section (redirects to Users) | Admin only |
 | `/admin/users` | Registered users + linked Players | Admin only |
+| `/admin/builder` | Puzzle builder (manual + AI) | Admin only |
+| `/admin/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
 | `/scoring` | Retired — scoring is per league now; redirects to `/leagues` | Authenticated |
-| `/builder` | Puzzle builder (manual + AI) | Admin only |
-| `/nyt-tracker` | Legacy NYT Mini import tools | Admin only |
+| `/builder` | Redirects to `/admin/builder` | Admin only |
+| `/nyt-tracker` | Redirects to `/admin/nyt-tracker` | Admin only |
 
 ### Crossword Solver
 
